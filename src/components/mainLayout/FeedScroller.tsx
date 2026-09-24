@@ -5,11 +5,9 @@ import {
 } from "../userInfo/UserInfoContexts";
 import { AuthToken, FakeData, Status, User } from "tweeter-shared";
 import { useState, useEffect } from "react";
-import InfiniteScroll from "react-infinite-scroll-component";
 import { ToastActionsContext } from "../toaster/ToastContexts";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ToastType } from "../toaster/Toast";
-import Post from "../statusItem/Post";
 import StatusItemScroller from "./StatusItemScroller";
 
 export const PAGE_SIZE = 10;
