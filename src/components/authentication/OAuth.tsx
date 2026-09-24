@@ -3,7 +3,6 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 
 interface Props {
     displayInfoMessageWithDarkBackground: (message: string) => void;
-
 }
 
 
