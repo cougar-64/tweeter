@@ -1,14 +1,13 @@
 import "./PostStatus.css";
 import { useState } from "react";
-import { useContext } from "react";
-import { UserInfoContext } from "../userInfo/UserInfoContexts";
 import { AuthToken, Status } from "tweeter-shared";
 import {useMessageActions} from "../toaster/MessageHooks";
+import {UserInfoHook} from "../userInfo/UserHooks";
 
 const PostStatus = () => {
   const { displayInfoMessage, displayErrorMessage, deleteMessage } = useMessageActions();
 
-  const { currentUser, authToken } = useContext(UserInfoContext);
+  const { currentUser, authToken } = UserInfoHook();
   const [post, setPost] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 

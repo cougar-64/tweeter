@@ -1,13 +1,9 @@
-import { useContext } from "react";
-import {
-  UserInfoContext,
-  UserInfoActionsContext,
-} from "../userInfo/UserInfoContexts";
 import { AuthToken, FakeData, Status, User } from "tweeter-shared";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import StatusItemScroller from "./StatusItemScroller";
 import {useMessageActions} from "../toaster/MessageHooks";
+import {UserInfoActionsHook, UserInfoHook} from "../userInfo/UserHooks";
 
 export const PAGE_SIZE = 10;
 
@@ -21,8 +17,8 @@ const FeedScroller = () => {
   const addItems = (newItems: Status[]) =>
     setItems((previousItems) => [...previousItems, ...newItems]);
 
-  const { displayedUser, authToken } = useContext(UserInfoContext);
-  const { setDisplayedUser } = useContext(UserInfoActionsContext);
+  const { displayedUser, authToken } = UserInfoHook();
+  const { setDisplayedUser } = UserInfoActionsHook();
   const { displayedUser: displayedUserAliasParam } = useParams();
 
   // Update the displayed user context variable whenever the displayedUser url parameter changes. This allows browser forward and back buttons to work correctly.
