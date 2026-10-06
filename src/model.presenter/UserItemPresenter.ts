@@ -6,6 +6,8 @@ export interface UserItemView {
     displayErrorMessage: (message: string) => void;
 }
 
+export const PAGE_SIZE = 10;
+
 export abstract class UserItemPresenter {
 
     private _view: UserItemView;

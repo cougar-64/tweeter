@@ -1,6 +1,6 @@
 import {AuthToken, FakeData, User} from "tweeter-shared";
 
-
+// for displayed user, logout, sign in/register, etc.
 export class UserService {
     public async getUser (
         authToken: AuthToken,

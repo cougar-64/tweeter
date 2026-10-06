@@ -4,8 +4,9 @@ import {AuthToken, FakeData, Status, User} from "tweeter-shared";
 import React, {useEffect, useState} from "react";
 import {useMessageActions} from "../toaster/MessageHooks";
 import {UserInfoActionsHook, UserInfoHook, useUserNavigation} from "../userInfo/UserHooks";
-import {PAGE_SIZE} from "../mainLayout/UserItemScroller";
+import { PAGE_SIZE } from "../../model.presenter/UserItemPresenter"
 import StatusItem from "../userItem/StatusItem";
+import {StoryPresenter, StoryView} from "../../model.presenter/StoryPresenter";
 
 
 interface Props {
@@ -32,6 +33,12 @@ const StatusItemScroller= (props: Props) => {
     const { displayedUser, authToken } = UserInfoHook();
     const { setDisplayedUser } = UserInfoActionsHook();
     const { displayedUser: displayedUserAliasParam } = useParams();
+
+    const listener: StoryView = {
+
+    }
+
+    const presenter = new StoryPresenter(listener);
 
     // Update the displayed user context variable whenever the displayedUser url parameter changes. This allows browser forward and back buttons to work correctly.
     useEffect(() => {
@@ -79,13 +86,6 @@ const StatusItemScroller= (props: Props) => {
         }
     };
 
-    const getUser = async (
-        authToken: AuthToken,
-        alias: string
-    ): Promise<User | null> => {
-        // TODO: Replace with the result of calling server
-        return FakeData.instance.findUserByAlias(alias);
-    };
     return (
         <div className="container px-0 overflow-visible vh-100">
             <InfiniteScroll
