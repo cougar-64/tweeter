@@ -7,7 +7,7 @@ export interface StatusItemView {
     displayErrorMessage: (message: string) => void;
 }
 
-export class StatusItemPresenter {
+export abstract class StatusItemPresenter {
     private _view: StatusItemView
     private _userService: UserService
     private _lastItem: Status | null = null
@@ -49,4 +49,6 @@ export class StatusItemPresenter {
     ): Promise<User | null> {
         return this._userService.getUser(authToken, alias)
     };
+
+    public abstract loadMoreItems(authToken: AuthToken, userAlias: string): void;
 }
