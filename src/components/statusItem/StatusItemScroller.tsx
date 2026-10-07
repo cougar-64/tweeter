@@ -3,7 +3,7 @@ import {useParams} from "react-router-dom";
 import { Status} from "tweeter-shared";
 import React, {useEffect, useRef, useState} from "react";
 import {useMessageActions} from "../toaster/MessageHooks";
-import {UserInfoActionsHook, UserInfoHook, useUserNavigation} from "../userInfo/UserHooks";
+import {UserInfoActionsHook, UserInfoHook} from "../userInfo/UserHooks";
 import StatusItem from "../userItem/StatusItem";
 import {StatusItemPresenter, StatusItemView} from "../../model.presenter/StatusItemPresenter"
 
