@@ -2,15 +2,25 @@ import {AuthItemPresenter, AuthItemView} from "./AuthItemPresenter";
 import {UserService} from "../model.service/UserService";
 import {useNavigate} from "react-router-dom";
 
-export class RegisterPresenter extends AuthItemPresenter {
-    private _userService: UserService;
-    private _navigate;
+export interface AuthItemView {
+    // inputFieldFactory: () => void;
+    // switchAuthenticationMethoFactory: () => void;
+    displayErrorMessage: (message: string) => void;
+}
+
+export class RegisterPresenter {
+    private _view;
+    protected _alias: string;
+    protected _password: string;
+    protected _firstName: string | null = null;
+    protected _lastName: string | null = null;
+    protected _userImageBytes: Uint8Array | null = null;
+    protected _imageFileExtension: string | null = null;
+    protected _isLoading: boolean = false;
 
     public constructor(view: AuthItemView)
     {
-        super(view);
-        this._userService = new UserService();
-        this._navigate = useNavigate();
+        this._view = view;
     }
 
     public getIn(alias: string, password: string) {

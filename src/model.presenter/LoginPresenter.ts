@@ -1,45 +1,38 @@
-import {AuthItemPresenter, AuthItemView} from "./AuthItemPresenter";
 import {UserService} from "../model.service/UserService";
 import {useNavigate} from "react-router-dom";
 import {UserInfoActionsHook} from "../components/userInfo/UserHooks";
+import {User} from "tweeter-shared";
 
-export class LoginPresenter extends AuthItemPresenter {
-    private _userService: UserService;
-    private _navigate;
-    private _updateUserInfo;
+export interface LoginView {
+    // inputFieldFactory: () => void;
+    // switchAuthenticationMethoFactory: () => void;
+    navigate: (url: string) => void;
+    displayErrorMessage: (message: string) => void;
+}
 
-    public constructor(view: AuthItemView) {
-        super(view)
+export class LoginPresenter {
+    private _view;
+    protected _alias: string | null = null;
+    protected _password: string | null = null;
+    private _userService: UserService | null;
+
+    public constructor(view: LoginView) {
+        this._view = view;
         this._userService = new UserService();
-        this._navigate = useNavigate();
-        this._updateUserInfo = UserInfoActionsHook();
     }
 
-
-
-    public getIn(alias: string, password: string) {
-        return this._userService.login(alias, password);
-    }
-
-    public async doGetIn(rememberMe: boolean, originalUrl: string | undefined) {
+    public async login(alias: string, password: string, originalUrl: string | undefined) {
         try {
-            super.isLoading = false;
-
-            const [user, authToken] = await this.getIn(this.alias!, this.password!);
-
-            this._updateUserInfo(user, user, authToken, rememberMe);
-
+            const [user, authToken] = await this._userService!.login(alias, password);
+            this._userService!.login(alias, password);
             if (!!originalUrl) {
-                this._navigate(originalUrl);
+                this._view.navigate(originalUrl);
             } else {
-                this._navigate(`/feed/${user.alias}`);
+                this._view.navigate(`/feed/${user.alias}`)
             }
-        } catch (error) {
-            this.view.displayErrorMessage(
-                `Failed to log user in because of exception: ${error}`,
-            );
-        } finally {
-            super.isLoading = false;
+        }
+        catch (error) {
+            this._view.displayErrorMessage(`Failed to log in user because of error ${error}`);
         }
     };
 }

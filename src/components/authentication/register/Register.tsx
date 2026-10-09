@@ -7,7 +7,7 @@ import { Buffer } from "buffer";
 import AuthenticationFields from "../AuthenticationFields";
 import {useMessageActions} from "../../toaster/MessageHooks";
 import {UserInfoActionsHook} from "../../userInfo/UserHooks";
-import {AuthItemPresenter, AuthItemView} from "../../../model.presenter/AuthItemPresenter";
+import {AuthItemPresenter} from "../../../model.presenter/AuthItemPresenter";
 
 interface Props {
   presenterFactory: (view: AuthItemView) => AuthItemPresenter;
