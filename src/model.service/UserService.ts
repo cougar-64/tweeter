@@ -15,6 +15,7 @@ export class UserService {
       alias: string,
       password: string
     ): Promise<[User, AuthToken]> => {
+        console.log("got to service login");
       // TODO: Replace with the result of calling the server
       const user = FakeData.instance.firstUser;
 

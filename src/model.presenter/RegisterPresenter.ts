@@ -1,51 +1,66 @@
-import {AuthItemPresenter, AuthItemView} from "./AuthItemPresenter";
 import {UserService} from "../model.service/UserService";
-import {useNavigate} from "react-router-dom";
+import {UserInfo} from "../components/userInfo/UserInfo";
+import {UserInfoActions} from "../components/userInfo/UserInfoContexts";
 
-export interface AuthItemView {
-    // inputFieldFactory: () => void;
-    // switchAuthenticationMethoFactory: () => void;
+
+export interface RegisterView {
+    navigate: (url: string) => void;
     displayErrorMessage: (message: string) => void;
 }
 
 export class RegisterPresenter {
     private _view;
-    protected _alias: string;
-    protected _password: string;
-    protected _firstName: string | null = null;
-    protected _lastName: string | null = null;
-    protected _userImageBytes: Uint8Array | null = null;
-    protected _imageFileExtension: string | null = null;
-    protected _isLoading: boolean = false;
+    private _userService: UserService | null;
+    private _userInfoActions: UserInfoActions;
 
-    public constructor(view: AuthItemView)
+    public constructor(view: RegisterView, userInfoActions: UserInfoActions)
     {
         this._view = view;
+        this._userService = new UserService();
+        this._userInfoActions = userInfoActions;
     }
 
-    public getIn(alias: string, password: string) {
-        if (super.firstName != null && super.lastName != null && super.userItemBytes != null && super.imageFileExtension != null) {
-            return this._userService.register(super.firstName, super.lastName, alias, password, super.userItemBytes, super.imageFileExtension);
-        }
-    }
-
-    public async doGetIn(rememberMe: boolean) {
+    public async register(
+        firstName: string,
+        lastName: string,
+        alias: string,
+        password: string,
+        userImageBytes: Uint8Array,
+        imageFileExtension: string,
+        rememberMe: boolean) {
         try {
-            super.isLoading = true;
-
-            const [user, authToken] = await this.getIn(
-                this.alias,
-                this.password
+            const [user, authToken] = await this._userService!.register(
+                firstName, lastName, alias, password, userImageBytes, imageFileExtension,
             );
-
-            updateUserInfo(user, user, authToken, rememberMe);
-            this._navigate(`/feed/${user.alias}`);
+            await this._userService!.register(firstName, lastName, alias, password,
+                userImageBytes, imageFileExtension);
+            this._userInfoActions.updateUserInfo(user, user, authToken, rememberMe);
+            this._view.navigate(`/feed/${user.alias}`);
         } catch (error) {
-            this.view.displayErrorMessage(
-                `Failed to register user because of exception: ${error}`,
+            this._view.displayErrorMessage(
+                `Failed to register user because of exception${error}`,
             );
-        } finally {
-            super.isLoading = false;
         }
-    };
+
+    }
+
+    // public async doRegister(rememberMe: boolean) {
+    //     try {
+    //         super.isLoading = true;
+    //
+    //         const [user, authToken] = await this.getIn(
+    //             this.alias,
+    //             this.password
+    //         );
+    //
+    //         updateUserInfo(user, user, authToken, rememberMe);
+    //         this._view.navigate(`/feed/${user.alias}`);
+    //     } catch (error) {
+    //         this._view.displayErrorMessage(
+    //             `Failed to register user because of exception: ${error}`,
+    //         );
+    //     } finally {
+    //         super.isLoading = false;
+    //     }
+    // };
 }

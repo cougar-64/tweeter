@@ -6,11 +6,11 @@ import AuthenticationFormLayout from "../AuthenticationFormLayout";
 import { Buffer } from "buffer";
 import AuthenticationFields from "../AuthenticationFields";
 import {useMessageActions} from "../../toaster/MessageHooks";
+import {RegisterPresenter, RegisterView} from "../../../model.presenter/RegisterPresenter";
 import {UserInfoActionsHook} from "../../userInfo/UserHooks";
-import {AuthItemPresenter} from "../../../model.presenter/AuthItemPresenter";
 
 interface Props {
-  presenterFactory: (view: AuthItemView) => AuthItemPresenter;
+  presenterFactory: (view: RegisterView) => RegisterPresenter;
 }
 
 const Register = (props: Props) => {
@@ -28,11 +28,12 @@ const Register = (props: Props) => {
   const { updateUserInfo } = UserInfoActionsHook();
   const { displayErrorMessage } = useMessageActions();
 
-  const listener: AuthItemView = {
-    // how do I know what to put here??
+  const listener: RegisterView = {
+    navigate: navigate,
+    displayErrorMessage: displayErrorMessage
   }
 
-  const presenterRef = useRef<AuthItemPresenter | null>(null);
+  const presenterRef = useRef<RegisterPresenter | null>(null);
   if (!presenterRef.current) {
     presenterRef.current = props.presenterFactory(listener);
   }
@@ -50,7 +51,8 @@ const Register = (props: Props) => {
 
   const registerOnEnter = (event: React.KeyboardEvent<HTMLElement>) => {
     if (event.key == "Enter" && !checkSubmitButtonStatus()) {
-      presenterRef.current!.getIn(presenterRef.current!.alias!, presenterRef.current!.password!);
+      // console.log("register submit fired");
+      doRegister();
     }
   };
 
@@ -95,29 +97,11 @@ const Register = (props: Props) => {
     return file.name.split(".").pop();
   };
 
-  // const doRegister = async () => {
-  //   try {
-  //     setIsLoading(true);
-  //
-  //     const [user, authToken] = await presenterRef.register(
-  //       firstName,
-  //       lastName,
-  //       alias,
-  //       password,
-  //       imageBytes,
-  //       imageFileExtension
-  //     );
-  //
-  //     updateUserInfo(user, user, authToken, rememberMe);
-  //     navigate(`/feed/${user.alias}`);
-  //   } catch (error) {
-  //     displayErrorMessage(
-  //       `Failed to register user because of exception: ${error}`,
-  //     );
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+  const doRegister = async () => {
+    console.log("doRegister fired");
+    await presenterRef.current!.register(firstName, lastName, alias,
+        password, imageBytes, imageFileExtension, rememberMe);
+  };
 
   // const register = async (
   //   firstName: string,
@@ -170,7 +154,7 @@ const Register = (props: Props) => {
         </div>
         <AuthenticationFields setAlias={setAlias}
                               setPassword={setPassword}
-                              handleSubmit={presenterRef.current!.doGetIn(rememberMe)}
+                              handleSubmit={registerOnEnter}
                               checkSubmitButtonStatus={checkSubmitButtonStatus}/>
         <div className="form-floating mb-3">
           <input
@@ -209,7 +193,7 @@ const Register = (props: Props) => {
       setRememberMe={setRememberMe}
       submitButtonDisabled={checkSubmitButtonStatus}
       isLoading={isLoading}
-      submit={presenterRef.current!.doGetIn(rememberMe)}
+      submit={doRegister}
     />
   );
 };

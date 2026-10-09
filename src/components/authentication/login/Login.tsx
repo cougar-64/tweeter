@@ -23,7 +23,6 @@ const Login = (props: Props) => {
   const listener: LoginView = {
     navigate: navigate,
     displayErrorMessage: displayErrorMessage
-    // how do I know what to put here??
   }
 
   const presenterRef = useRef<LoginPresenter | null>(null);
@@ -42,7 +41,10 @@ const Login = (props: Props) => {
   };
 
     const doLogin = async () => {
-      await presenterRef.current!.login(alias, password, props.originalUrl);
+      console.log("doLogin fired"); // this fires
+
+      await presenterRef.current!.login(alias, password, props.originalUrl, rememberMe);
+      console.log("doLogin successful")
     }
 
 

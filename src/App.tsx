@@ -11,7 +11,7 @@ import Register from "./components/authentication/register/Register";
 import MainLayout from "./components/mainLayout/MainLayout";
 import Toaster from "./components/toaster/Toaster";
 import UserItemScroller from "./components/mainLayout/UserItemScroller";
-import {UserInfoHook} from "./components/userInfo/UserHooks";
+import {UserInfoActionsHook, UserInfoHook} from "./components/userInfo/UserHooks";
 import StatusItemScroller from "./components/statusItem/StatusItemScroller";
 import {UserItemView} from "./model.presenter/UserItemPresenter";
 import {FolloweePresenter} from "./model.presenter/FolloweePresenter";
@@ -19,9 +19,8 @@ import {FollowerPresenter} from "./model.presenter/FollowerPresenter";
 import {StatusItemView} from "./model.presenter/StatusItemPresenter";
 import {FeedPresenter} from "./model.presenter/FeedPresenter";
 import {StoryPresenter} from "./model.presenter/StoryPresenter";
-import {AuthItemPresenter, AuthItemView} from "./model.presenter/AuthItemPresenter";
-import {LoginPresenter} from "./model.presenter/LoginPresenter";
-import {RegisterPresenter} from "./model.presenter/RegisterPresenter";
+import {LoginPresenter, LoginView} from "./model.presenter/LoginPresenter";
+import {RegisterPresenter, RegisterView} from "./model.presenter/RegisterPresenter";
 
 const App = () => {
   const { currentUser, authToken } = UserInfoHook();
@@ -30,6 +29,11 @@ const App = () => {
     return !!currentUser && !!authToken;
   };
 
+    console.log({
+        currentUser,
+        authToken,
+        authenticated: !!currentUser && !!authToken,
+    });
 
   return (
     <div>
@@ -65,12 +69,14 @@ const AuthenticatedRoutes = () => {
 
 const UnauthenticatedRoutes = () => {
   const location = useLocation();
+  const userInfoActions = UserInfoActionsHook();
 
   return (
     <Routes>
-      <Route path="/login" element={<Login presenterFactory={(view: AuthItemView)=> new LoginPresenter(view)}/>} />
-      <Route path="/register" element={<Register presenterFactory={(view: AuthItemView) => new RegisterPresenter(view)}/>} />
-      <Route path="*" element={<Login originalUrl={location.pathname} presenterFactory={(view: AuthItemView) => new LoginPresenter(view)} />} />
+      <Route path="/login" element={<Login presenterFactory={(view: LoginView)=> new LoginPresenter(view, userInfoActions)}/>} />
+      <Route path="/register" element={<Register presenterFactory={(view: RegisterView) => new RegisterPresenter(view, userInfoActions)}/>} />
+      {/*<Route path="*" element={<Login originalUrl={location.pathname} presenterFactory={(view: LoginView) => new LoginPresenter(view, userInfoActions)} />} />*/}
+        <Route path="*" element={<Navigate to={`/login`} replace /> } />
     </Routes>
   );
 };
