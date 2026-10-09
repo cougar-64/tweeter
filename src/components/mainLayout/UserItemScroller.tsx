@@ -28,7 +28,7 @@ const UserItemScroller = (props: Props) => {
         displayErrorMessage: displayErrorMessage
     }
 
-    const presenterRef = useRef<UserItemPresenter | null>(null)
+    const presenterRef = useRef<UserItemPresenter | null>(null);
     if (!presenterRef.current) {
         presenterRef.current = props.presenterFactory(listener);
     }

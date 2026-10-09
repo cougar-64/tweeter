@@ -19,6 +19,9 @@ import {FollowerPresenter} from "./model.presenter/FollowerPresenter";
 import {StatusItemView} from "./model.presenter/StatusItemPresenter";
 import {FeedPresenter} from "./model.presenter/FeedPresenter";
 import {StoryPresenter} from "./model.presenter/StoryPresenter";
+import {AuthItemPresenter, AuthItemView} from "./model.presenter/AuthItemPresenter";
+import {LoginPresenter} from "./model.presenter/LoginPresenter";
+import {RegisterPresenter} from "./model.presenter/RegisterPresenter";
 
 const App = () => {
   const { currentUser, authToken } = UserInfoHook();
@@ -65,9 +68,9 @@ const UnauthenticatedRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="*" element={<Login originalUrl={location.pathname} />} />
+      <Route path="/login" element={<Login presenterFactory={(view: AuthItemView)=> new LoginPresenter(view)}/>} />
+      <Route path="/register" element={<Register presenterFactory={(view: AuthItemView) => new RegisterPresenter(view)}/>} />
+      <Route path="*" element={<Login originalUrl={location.pathname} presenterFactory={(view: AuthItemView) => new LoginPresenter(view)} />} />
     </Routes>
   );
 };

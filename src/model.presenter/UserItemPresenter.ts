@@ -12,8 +12,8 @@ export abstract class UserItemPresenter {
 
     private _view: UserItemView;
     private _userService: UserService;
-    private _hasMoreItems = true
-    private _lastItem: User | null = null
+    private _hasMoreItems = true;
+    private _lastItem: User | null = null;
 
     protected constructor(view: UserItemView) {
         this._view = view;
