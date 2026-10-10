@@ -1,9 +1,10 @@
 import "./UserInfoComponent.css";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { AuthToken, FakeData, User } from "tweeter-shared";
+import { AuthToken, User } from "tweeter-shared";
 import {useMessageActions} from "../toaster/MessageHooks";
 import {UserInfoActionsHook, UserInfoHook} from "./UserHooks";
+import {UserInfoPresenter} from "../../model.presenter/UserInfoPresenter";
 
 const UserInfo = () => {
   const [isFollower, setIsFollower] = useState(false);
@@ -48,14 +49,30 @@ const UserInfo = () => {
     }
   };
 
-  const getIsFollowerStatus = async (
-    authToken: AuthToken,
-    user: User,
-    selectedUser: User,
+  const getIsFollowerStatus = (
+      authToken: AuthToken,
+      currentUser: User,
+      displayedUser: User,
   ): Promise<boolean> => {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.isFollower();
-  };
+    let presenter: UserInfoPresenter = new UserInfoPresenter(authToken, currentUser, displayedUser);
+    return presenter.getFollowerStatus();
+  }
+
+  const getFolloweeCount = async (
+        authToken: AuthToken,
+        user: User,
+  ): Promise<number> => {
+      let presenter: UserInfoPresenter = new UserInfoPresenter(authToken, user, null);
+      return presenter.getFolloweeCount();
+  }
+
+  const getFollowerCount = async (
+        authToken: AuthToken,
+        user: User,
+  ): Promise<number> => {
+      let presenter: UserInfoPresenter = new UserInfoPresenter(authToken, user, null);
+      return presenter.getFollowerCount();
+  }
 
   const setNumbFollowees = async (
     authToken: AuthToken,
@@ -70,14 +87,6 @@ const UserInfo = () => {
     }
   };
 
-  const getFolloweeCount = async (
-    authToken: AuthToken,
-    user: User,
-  ): Promise<number> => {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.getFolloweeCount(user.alias);
-  };
-
   const setNumbFollowers = async (
     authToken: AuthToken,
     displayedUser: User,
@@ -89,14 +98,6 @@ const UserInfo = () => {
         `Failed to get followers count because of exception: ${error}`,
       );
     }
-  };
-
-  const getFollowerCount = async (
-    authToken: AuthToken,
-    user: User,
-  ): Promise<number> => {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.getFollowerCount(user.alias);
   };
 
   const switchToLoggedInUser = (event: React.MouseEvent): void => {

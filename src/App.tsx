@@ -75,7 +75,6 @@ const UnauthenticatedRoutes = () => {
     <Routes>
       <Route path="/login" element={<Login presenterFactory={(view: LoginView)=> new LoginPresenter(view, userInfoActions)}/>} />
       <Route path="/register" element={<Register presenterFactory={(view: RegisterView) => new RegisterPresenter(view, userInfoActions)}/>} />
-      {/*<Route path="*" element={<Login originalUrl={location.pathname} presenterFactory={(view: LoginView) => new LoginPresenter(view, userInfoActions)} />} />*/}
         <Route path="*" element={<Navigate to={`/login`} replace /> } />
     </Routes>
   );
