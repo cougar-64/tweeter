@@ -4,9 +4,10 @@
 
 import {useContext} from "react";
 import {UserInfoActionsContext, UserInfoContext} from "./UserInfoContexts";
-import {AuthToken, FakeData, User} from "tweeter-shared";
+import {AuthToken, User} from "tweeter-shared";
 import {useMessageActions} from "../toaster/MessageHooks";
 import {useNavigate} from "react-router-dom";
+import {UserService} from "../../model.service/UserService";
 
 
 export const UserInfoHook = () => {
@@ -23,6 +24,7 @@ export const useUserNavigation = (featurePath: string) => {
     const { setDisplayedUser } = UserInfoActionsHook();
 
     const navigate = useNavigate();
+    const _userService = new UserService();
 
     const navigateToUser = async (event: React.MouseEvent): Promise<void> => {
         event.preventDefault();
@@ -54,8 +56,7 @@ export const useUserNavigation = (featurePath: string) => {
         authToken: AuthToken,
         alias: string
     ): Promise<User | null> => {
-        // TODO: Replace with the result of calling server
-        return FakeData.instance.findUserByAlias(alias);
+        return _userService.getUser(authToken, alias);
     };
     return navigateToUser;
 }

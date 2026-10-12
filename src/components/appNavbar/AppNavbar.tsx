@@ -5,6 +5,7 @@ import Image from "react-bootstrap/Image";
 import { AuthToken } from "tweeter-shared";
 import {useMessageActions} from "../toaster/MessageHooks";
 import {UserInfoActionsHook, UserInfoHook} from "../userInfo/UserHooks";
+import {LogoutPresenter} from "../../model.presenter/LogoutPresenter";
 
 const AppNavbar = () => {
   const location = useLocation();
@@ -12,6 +13,8 @@ const AppNavbar = () => {
   const { clearUserInfo } = UserInfoActionsHook();
   const navigate = useNavigate();
   const { displayInfoMessage, displayErrorMessage, deleteMessage } = useMessageActions();
+
+  const _logoutPresenter = new LogoutPresenter();
 
   const logOut = async () => {
     const loggingOutToastId = displayInfoMessage("Logging Out...", 0);
@@ -31,7 +34,7 @@ const AppNavbar = () => {
 
   const logout = async (authToken: AuthToken): Promise<void> => {
     // Pause so we can see the logging out message. Delete when the call to the server is implemented.
-    await new Promise((res) => setTimeout(res, 1000));
+    await _logoutPresenter.logout(authToken);
   };
 
   return (
