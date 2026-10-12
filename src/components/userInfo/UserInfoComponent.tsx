@@ -19,6 +19,8 @@ const UserInfo = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const presenter = new UserInfoPresenter;
+
   if (!displayedUser) {
     setDisplayedUser(currentUser!);
   }
@@ -54,24 +56,21 @@ const UserInfo = () => {
       currentUser: User,
       displayedUser: User,
   ): Promise<boolean> => {
-    let presenter: UserInfoPresenter = new UserInfoPresenter(authToken, currentUser, displayedUser);
-    return presenter.getFollowerStatus();
+    return presenter.getFollowerStatus(authToken, currentUser, displayedUser);
   }
 
   const getFolloweeCount = async (
         authToken: AuthToken,
         user: User,
   ): Promise<number> => {
-      let presenter: UserInfoPresenter = new UserInfoPresenter(authToken, user, null);
-      return presenter.getFolloweeCount();
+      return presenter.getFolloweeCount(authToken, user);
   }
 
   const getFollowerCount = async (
         authToken: AuthToken,
         user: User,
   ): Promise<number> => {
-      let presenter: UserInfoPresenter = new UserInfoPresenter(authToken, user, null);
-      return presenter.getFollowerCount();
+      return presenter.getFollowerCount(authToken, user);
   }
 
   const setNumbFollowees = async (
@@ -148,13 +147,7 @@ const UserInfo = () => {
     userToFollow: User,
   ): Promise<[followerCount: number, followeeCount: number]> => {
     // Pause so we can see the follow message. Remove when connected to the server
-    await new Promise((f) => setTimeout(f, 2000));
-
-    // TODO: Call the server
-
-    const followerCount = await getFollowerCount(authToken, userToFollow);
-    const followeeCount = await getFolloweeCount(authToken, userToFollow);
-
+    const [followerCount, followeeCount] = await presenter.follow(authToken, userToFollow);
     return [followerCount, followeeCount];
   };
 
@@ -194,14 +187,7 @@ const UserInfo = () => {
     authToken: AuthToken,
     userToUnfollow: User,
   ): Promise<[followerCount: number, followeeCount: number]> => {
-    // Pause so we can see the unfollow message. Remove when connected to the server
-    await new Promise((f) => setTimeout(f, 2000));
-
-    // TODO: Call the server
-
-    const followerCount = await getFollowerCount(authToken, userToUnfollow);
-    const followeeCount = await getFolloweeCount(authToken, userToUnfollow);
-
+    const [followerCount, followeeCount] = await presenter.unfollow(authToken, userToUnfollow);
     return [followerCount, followeeCount];
   };
 

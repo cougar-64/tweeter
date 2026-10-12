@@ -35,8 +35,6 @@ export class RegisterPresenter {
             const [user, authToken] = await this._userService!.register(
                 firstName, lastName, alias, password, userImageBytes, imageFileExtension,
             );
-            // await this._userService!.register(firstName, lastName, alias, password,
-            //     userImageBytes, imageFileExtension);
             this._userInfoActions.updateUserInfo(user, user, authToken, rememberMe);
             this._view.navigate(`/feed/${user.alias}`);
         } catch (error) {

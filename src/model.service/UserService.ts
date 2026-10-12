@@ -47,4 +47,8 @@ export class UserService {
 
       return [user, FakeData.instance.authToken];
     };
+
+    public logout(authToken: AuthToken): Promise<void> {
+        return new Promise((res) => setTimeout(res, 1000));
+    }
 }

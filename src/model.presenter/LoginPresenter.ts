@@ -1,6 +1,5 @@
 import {UserService} from "../model.service/UserService";
 import {UserInfoActions} from "../components/userInfo/UserInfoContexts";
-import userInfoProvider from "../components/userInfo/UserInfoProvider";
 
 export interface LoginView {
     navigate: (url: string) => void;

@@ -53,6 +53,6 @@ export class UserNavigationPresenter {
         authToken: AuthToken,
         alias: string
     ): Promise<User | null> {
-        return this._userService.getUser(authToken, alias);
+        return await this._userService.getUser(authToken, alias);
     };
 }
