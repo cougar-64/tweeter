@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthToken, User } from "tweeter-shared";
 import {useMessageActions} from "../toaster/MessageHooks";
 import {UserInfoActionsHook, UserInfoHook} from "./UserHooks";
-import {UserInfoPresenter} from "../../model.presenter/UserInfoPresenter";
+import {UserInfoPresenter, UserInfoView} from "../../model.presenter/UserInfoPresenter";
 
 const UserInfo = () => {
   const [isFollower, setIsFollower] = useState(false);
@@ -19,7 +19,14 @@ const UserInfo = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const presenter = new UserInfoPresenter;
+  const listener: UserInfoView = {
+    setFolloweeCount: setFolloweeCount,
+    setFollowerCount: setFollowerCount,
+    displayErrorMessage: displayErrorMessage,
+    setIsFollower: setIsFollower,
+  }
+
+  const presenter = new UserInfoPresenter(listener);
 
   if (!displayedUser) {
     setDisplayedUser(currentUser!);
@@ -49,6 +56,7 @@ const UserInfo = () => {
         `Failed to determine follower status because of exception: ${error}`,
       );
     }
+    // return presenter.setIsFollowerStatus(authToken, currentUser, displayedUser);
   };
 
   const getIsFollowerStatus = (
@@ -77,26 +85,14 @@ const UserInfo = () => {
     authToken: AuthToken,
     displayedUser: User,
   ) => {
-    try {
-      setFolloweeCount(await getFolloweeCount(authToken, displayedUser));
-    } catch (error) {
-      displayErrorMessage(
-        `Failed to get followees count because of exception: ${error}`,
-      );
-    }
+    return presenter.setNumFollowees(authToken, displayedUser);
   };
 
   const setNumbFollowers = async (
     authToken: AuthToken,
     displayedUser: User,
   ) => {
-    try {
-      setFollowerCount(await getFollowerCount(authToken, displayedUser));
-    } catch (error) {
-      displayErrorMessage(
-        `Failed to get followers count because of exception: ${error}`,
-      );
-    }
+    return presenter.setNumFollowers(authToken, displayedUser);
   };
 
   const switchToLoggedInUser = (event: React.MouseEvent): void => {
