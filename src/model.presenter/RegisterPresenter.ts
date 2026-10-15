@@ -5,7 +5,7 @@ import {Buffer} from "buffer";
 import {Presenter, View} from "./Presenter";
 
 
-export interface RegisterView extends View{
+export interface RegisterView extends View {
     navigate: (url: string) => void;
     displayErrorMessage: (message: string) => void;
     setImageUrl: (url: string) => void;

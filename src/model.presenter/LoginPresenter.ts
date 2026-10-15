@@ -1,8 +1,8 @@
 import {UserService} from "../model.service/UserService";
 import {UserInfoActions} from "../components/userInfo/UserInfoContexts";
-import {Presenter} from "./Presenter";
+import {Presenter, View} from "./Presenter";
 
-export interface LoginView {
+export interface LoginView extends View {
     navigate: (url: string) => void;
     displayErrorMessage: (message: string) => void;
 }
