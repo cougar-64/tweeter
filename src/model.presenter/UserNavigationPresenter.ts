@@ -1,24 +1,24 @@
 import {AuthToken, User} from "tweeter-shared";
 import {UserService} from "../model.service/UserService";
+import {Presenter, View} from "./Presenter";
 
 
-export interface UserNavigationView {
+export interface UserNavigationView extends View {
     displayErrorMessage: (message: string) => string;
     displayedUser: User | null;
     setDisplayedUser: (user: User) => void;
     authToken: AuthToken | null;
 }
 
-export class UserNavigationPresenter {
+export class UserNavigationPresenter extends Presenter<UserNavigationView>{
     private _userService: UserService;
-    private _view: UserNavigationView;
     private _navigate: any;
     private _featurePath: string;
 
 
     public constructor(view: UserNavigationView, navigate: any, featurePath: string) {
+        super(view);
         this._userService = new UserService();
-        this._view = view;
         this._navigate = navigate;
         this._featurePath = featurePath;
     }
@@ -29,16 +29,16 @@ export class UserNavigationPresenter {
         try {
             const alias = this.extractAlias(event.target.toString());
 
-            const toUser = await this.getUser(this._view.authToken!, alias);
+            const toUser = await this.getUser(this.view.authToken!, alias);
 
             if (toUser) {
-                if (!toUser.equals(this._view.displayedUser!)) {
-                    this._view.setDisplayedUser(toUser);
+                if (!toUser.equals(this.view.displayedUser!)) {
+                    this.view.setDisplayedUser(toUser);
                     this._navigate(`${this._featurePath}/${toUser.alias}`);
                 }
             }
         } catch (error) {
-            this._view.displayErrorMessage(
+            this.view.displayErrorMessage(
                 `Failed to get user because of exception: ${error}`,
             );
         }

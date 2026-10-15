@@ -1,18 +1,18 @@
 import {UserService} from "../model.service/UserService";
 import {UserInfoActions} from "../components/userInfo/UserInfoContexts";
+import {Presenter} from "./Presenter";
 
 export interface LoginView {
     navigate: (url: string) => void;
     displayErrorMessage: (message: string) => void;
 }
 
-export class LoginPresenter {
-    private _view;
+export class LoginPresenter extends Presenter<LoginView>{
     private _userService: UserService | null;
     private _userInfoActions: UserInfoActions;
 
     public constructor(view: LoginView, userInfoActions: UserInfoActions) {
-        this._view = view;
+        super(view);
         this._userService = new UserService();
         this._userInfoActions = userInfoActions;
     }
@@ -23,14 +23,14 @@ export class LoginPresenter {
             this._userInfoActions!.updateUserInfo(user, user, authToken, rememberMe);
             console.log("user and authToken successfully found")
             if (!!originalUrl) {
-                this._view.navigate(originalUrl);
+                this.view.navigate(originalUrl);
             } else {
-                this._view.navigate(`/feed/${user.alias}`)
+                this.view.navigate(`/feed/${user.alias}`)
             }
             console.log("login presenter successful")
         }
         catch (error) {
-            this._view.displayErrorMessage(`Failed to log in user because of error ${error}`);
+            this.view.displayErrorMessage(`Failed to log in user because of error ${error}`);
         }
     };
 }

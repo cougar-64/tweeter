@@ -2,9 +2,10 @@ import {UserService} from "../model.service/UserService";
 import {UserInfo} from "../components/userInfo/UserInfo";
 import {UserInfoActions} from "../components/userInfo/UserInfoContexts";
 import {Buffer} from "buffer";
+import {Presenter, View} from "./Presenter";
 
 
-export interface RegisterView {
+export interface RegisterView extends View{
     navigate: (url: string) => void;
     displayErrorMessage: (message: string) => void;
     setImageUrl: (url: string) => void;
@@ -12,13 +13,12 @@ export interface RegisterView {
     setImageFileExtension: (extension: string) => void;
 }
 
-export class RegisterPresenter {
-    private _view;
+export class RegisterPresenter extends Presenter<RegisterView>{
     private _userService: UserService | null;
     private _userInfoActions: UserInfoActions;
 
     public constructor(view: RegisterView, userInfoActions: UserInfoActions) {
-        this._view = view;
+        super(view);
         this._userService = new UserService();
         this._userInfoActions = userInfoActions;
     }
@@ -36,9 +36,9 @@ export class RegisterPresenter {
                 firstName, lastName, alias, password, userImageBytes, imageFileExtension,
             );
             this._userInfoActions.updateUserInfo(user, user, authToken, rememberMe);
-            this._view.navigate(`/feed/${user.alias}`);
+            this.view.navigate(`/feed/${user.alias}`);
         } catch (error) {
-            this._view.displayErrorMessage(
+            this.view.displayErrorMessage(
                 `Failed to register user because of exception${error}`,
             );
         }
@@ -47,7 +47,7 @@ export class RegisterPresenter {
 
     public async handleImageFile(file: File | undefined) {
         if (file) {
-            this._view.setImageUrl(URL.createObjectURL(file));
+            this.view.setImageUrl(URL.createObjectURL(file));
 
             const reader = new FileReader();
             reader.onload = (event: ProgressEvent<FileReader>) => {
@@ -62,18 +62,18 @@ export class RegisterPresenter {
                     "base64"
                 );
 
-                this._view.setImageBytes(bytes);
+                this.view.setImageBytes(bytes);
             };
             reader.readAsDataURL(file);
 
             // Set image file extension (and move to a separate method)
             const fileExtension = this.getFileExtension(file);
             if (fileExtension) {
-                this._view.setImageFileExtension(fileExtension);
+                this.view.setImageFileExtension(fileExtension);
             }
         } else {
-            this._view.setImageUrl("");
-            this._view.setImageBytes(new Uint8Array());
+            this.view.setImageUrl("");
+            this.view.setImageBytes(new Uint8Array());
         }
     };
 

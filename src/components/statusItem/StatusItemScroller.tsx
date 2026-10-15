@@ -5,12 +5,13 @@ import React, {useEffect, useRef, useState} from "react";
 import {useMessageActions} from "../toaster/MessageHooks";
 import {UserInfoActionsHook, UserInfoHook} from "../userInfo/UserHooks";
 import StatusItem from "../userItem/StatusItem";
-import {StatusItemPresenter, StatusItemView} from "../../model.presenter/StatusItemPresenter"
+import {StatusItemPresenter} from "../../model.presenter/StatusItemPresenter"
+import {PagedItemView} from "../../model.presenter/PagedItemPresenter";
 
 
 interface Props {// this is what gets passed down from App.tsx for rendering
     featureUrl: string;
-    presenterFactory: (view: StatusItemView) => StatusItemPresenter;
+    presenterFactory: (view: PagedItemView<Status>) => StatusItemPresenter;
 }
 
 const StatusItemScroller= (props: Props) => {
@@ -21,7 +22,7 @@ const StatusItemScroller= (props: Props) => {
     const { setDisplayedUser } = UserInfoActionsHook();
     const { displayedUser: displayedUserAliasParam } = useParams();
 
-    const listener: StatusItemView = {
+    const listener: PagedItemView<Status> = {
         addItems: (newItems: Status[]) =>
             setItems((previousItems) => [...previousItems, ...newItems]),
         displayErrorMessage: displayErrorMessage
