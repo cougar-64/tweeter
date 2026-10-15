@@ -20,7 +20,7 @@ export abstract class Presenter<V extends View> {
 
     protected async doFailureReportingOperation(operation: () => Promise<void>, operationDescription: string) {
         try {
-            await operation;
+            await operation();
         } catch (error) {
             this._view.displayErrorMessage(
                 `Failed to ${operationDescription} because of exception: ${error}`,
