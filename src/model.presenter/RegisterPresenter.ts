@@ -1,48 +1,18 @@
-import {UserService} from "../model.service/UserService";
-import {UserInfo} from "../components/userInfo/UserInfo";
-import {UserInfoActions} from "../components/userInfo/UserInfoContexts";
 import {Buffer} from "buffer";
-import {Presenter, View} from "./Presenter";
+import {AuthPresenter, AuthView} from "./AuthPresenter";
+import { User, AuthToken } from "tweeter-shared";
 
 
-export interface RegisterView extends View {
-    navigate: (url: string) => void;
-    displayErrorMessage: (message: string) => void;
-    setImageUrl: (url: string) => void;
-    setImageBytes: (array: Uint8Array) => void;
-    setImageFileExtension: (extension: string) => void;
+export interface RegisterView extends AuthView {
+
 }
 
-export class RegisterPresenter extends Presenter<RegisterView>{
-    private _userService: UserService | null;
-    private _userInfoActions: UserInfoActions;
+export class RegisterPresenter extends AuthPresenter {
 
-    public constructor(view: RegisterView, userInfoActions: UserInfoActions) {
-        super(view);
-        this._userService = new UserService();
-        this._userInfoActions = userInfoActions;
-    }
-
-    public async register(
-        firstName: string,
-        lastName: string,
-        alias: string,
-        password: string,
-        userImageBytes: Uint8Array,
-        imageFileExtension: string,
-        rememberMe: boolean) {
-        try {
-            const [user, authToken] = await this._userService!.register(
-                firstName, lastName, alias, password, userImageBytes, imageFileExtension,
-            );
-            this._userInfoActions.updateUserInfo(user, user, authToken, rememberMe);
-            this.view.navigate(`/feed/${user.alias}`);
-        } catch (error) {
-            this.view.displayErrorMessage(
-                `Failed to register user because of exception${error}`,
-            );
-        }
-
+    public doGetIn(alias: string, password: string, rememberMe: boolean, firstName?: string | undefined, lastName?: string | undefined, originalUrl?: string | undefined, userImageBytes?: Uint8Array | undefined, imageFileExtension?: string | undefined): Promise<[User, AuthToken]> {
+        return this._userService!.register(
+            firstName!, lastName!, alias, password, userImageBytes!, imageFileExtension!,
+        );
     }
 
     public async handleImageFile(file: File | undefined) {
@@ -79,5 +49,9 @@ export class RegisterPresenter extends Presenter<RegisterView>{
 
     public getFileExtension(file: File): string | undefined {
         return file.name.split(".").pop();
+    }
+
+    public itemDescription(): string {
+        return "register";
     }
 }

@@ -1,5 +1,4 @@
 import {Service} from "../model.service/Service";
-import {AuthToken} from "tweeter-shared";
 
 
 export abstract class PLParent<T extends Service> {

@@ -72,8 +72,8 @@ const Register = (props: Props) => {
 
   const doRegister = async () => {
     console.log("doRegister fired");
-    await presenterRef.current!.register(firstName, lastName, alias,
-        password, imageBytes, imageFileExtension, rememberMe);
+    await presenterRef.current!.getIn(alias, password, rememberMe, firstName, lastName,
+        undefined, imageBytes, imageFileExtension);
   };
 
   const inputFieldFactory = () => {

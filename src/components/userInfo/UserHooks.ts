@@ -32,36 +32,6 @@ export const useUserNavigation = (featurePath: string) => {
 
     const navigateToUser = async (event: React.MouseEvent): Promise<void> => {
         return presenter.navigateToUser(event);
-        //     event.preventDefault();
-    //
-    //     try {
-    //         const alias = extractAlias(event.target.toString());
-    //
-    //         const toUser = await getUser(authToken!, alias);
-    //
-    //         if (toUser) {
-    //             if (!toUser.equals(displayedUser!)) {
-    //                 setDisplayedUser(toUser);
-    //                 navigate(`${featurePath}/${toUser.alias}`);
-    //             }
-    //         }
-    //     } catch (error) {
-    //         displayErrorMessage(
-    //             `Failed to get user because of exception: ${error}`,
-    //         );
-    //     }
-    // };
-    //
-    // const extractAlias = (value: string): string => {
-    //     const index = value.indexOf("@");
-    //     return value.substring(index);
-    // };
-    //
-    // const getUser = async (
-    //     authToken: AuthToken,
-    //     alias: string
-    // ): Promise<User | null> => {
-    //     // return _userService.getUser(authToken, alias);
     };
     return navigateToUser;
 }

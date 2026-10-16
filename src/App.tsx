@@ -17,10 +17,11 @@ import {FolloweePresenter} from "./model.presenter/FolloweePresenter";
 import {FollowerPresenter} from "./model.presenter/FollowerPresenter";
 import {FeedPresenter} from "./model.presenter/FeedPresenter";
 import {StoryPresenter} from "./model.presenter/StoryPresenter";
-import {LoginPresenter, LoginView} from "./model.presenter/LoginPresenter";
+import {LoginPresenter} from "./model.presenter/LoginPresenter";
 import {RegisterPresenter, RegisterView} from "./model.presenter/RegisterPresenter";
 import {PagedItemView} from "./model.presenter/PagedItemPresenter";
 import {Status, User} from "tweeter-shared";
+import {AuthView} from "./model.presenter/AuthPresenter";
 
 const App = () => {
   const { currentUser, authToken } = UserInfoHook();
@@ -73,7 +74,7 @@ const UnauthenticatedRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/login" element={<Login presenterFactory={(view: LoginView)=> new LoginPresenter(view, userInfoActions)}/>} />
+      <Route path="/login" element={<Login presenterFactory={(view: AuthView)=> new LoginPresenter(view, userInfoActions)}/>} />
       <Route path="/register" element={<Register presenterFactory={(view: RegisterView) => new RegisterPresenter(view, userInfoActions)}/>} />
         <Route path="*" element={<Navigate to={`/login`} replace /> } />
     </Routes>

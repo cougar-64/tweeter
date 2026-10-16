@@ -1,36 +1,14 @@
-import {UserService} from "../model.service/UserService";
-import {UserInfoActions} from "../components/userInfo/UserInfoContexts";
-import {Presenter, View} from "./Presenter";
+import { User, AuthToken } from "tweeter-shared";
+import {AuthPresenter} from "./AuthPresenter";
 
-export interface LoginView extends View {
-    navigate: (url: string) => void;
-    displayErrorMessage: (message: string) => void;
-}
 
-export class LoginPresenter extends Presenter<LoginView>{
-    private _userService: UserService | null;
-    private _userInfoActions: UserInfoActions;
+export class LoginPresenter extends AuthPresenter {
 
-    public constructor(view: LoginView, userInfoActions: UserInfoActions) {
-        super(view);
-        this._userService = new UserService();
-        this._userInfoActions = userInfoActions;
+    public doGetIn(alias: string, password: string, rememberMe: boolean, firstName?: string | undefined, lastName?: string | undefined, originalUrl?: string | undefined, userImageBytes?: Uint8Array | undefined, imageFileExtension?: string | undefined): Promise<[User, AuthToken]> {
+        return this._userService!.login(alias, password);
     }
 
-    public async login(alias: string, password: string, originalUrl: string | undefined, rememberMe: boolean) {
-        try {
-            const [user, authToken] = await this._userService!.login(alias, password);
-            this._userInfoActions!.updateUserInfo(user, user, authToken, rememberMe);
-            console.log("user and authToken successfully found")
-            if (!!originalUrl) {
-                this.view.navigate(originalUrl);
-            } else {
-                this.view.navigate(`/feed/${user.alias}`)
-            }
-            console.log("login presenter successful")
-        }
-        catch (error) {
-            this.view.displayErrorMessage(`Failed to log in user because of error ${error}`);
-        }
-    };
+    public itemDescription(): string {
+        return "log in";
+    }
 }

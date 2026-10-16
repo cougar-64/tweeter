@@ -5,11 +5,12 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthenticationFormLayout from "../AuthenticationFormLayout";
 import AuthenticationFields from "../AuthenticationFields"
 import {useMessageActions} from "../../toaster/MessageHooks";
-import {LoginPresenter, LoginView} from "../../../model.presenter/LoginPresenter";
+import {LoginPresenter} from "../../../model.presenter/LoginPresenter";
+import {AuthPresenter, AuthView} from "../../../model.presenter/AuthPresenter";
 
 interface Props {
   originalUrl?: string;
-  presenterFactory: (view: LoginView) => LoginPresenter;
+  presenterFactory: (view: AuthView) => LoginPresenter;
 }
 
 const Login = (props: Props) => {
@@ -20,12 +21,15 @@ const Login = (props: Props) => {
   const [isLoading] = useState(false);
   const navigate = useNavigate();
 
-  const listener: LoginView = {
+  const listener: AuthView = {
     navigate: navigate,
-    displayErrorMessage: displayErrorMessage
+    displayErrorMessage: displayErrorMessage,
+    setImageUrl: url => {},
+    setImageBytes: array => {},
+    setImageFileExtension: extension => {},
   }
 
-  const presenterRef = useRef<LoginPresenter | null>(null);
+  const presenterRef = useRef<AuthPresenter | null>(null);
   if (!presenterRef.current) {
     presenterRef.current = props.presenterFactory(listener);
   }
@@ -43,7 +47,7 @@ const Login = (props: Props) => {
     const doLogin = async () => {
       console.log("doLogin fired"); // this fires
 
-      await presenterRef.current!.login(alias, password, props.originalUrl, rememberMe);
+      await presenterRef.current!.getIn(alias, password, rememberMe, props.originalUrl,); // POTENTIAL BUG HERE BY REARRANGING VAR INPUT
       console.log("doLogin successful")
     }
 
