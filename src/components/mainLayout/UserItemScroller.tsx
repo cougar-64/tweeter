@@ -15,7 +15,7 @@ interface Props { // this is what gets passed down from App.tsx for rendering
 }
 
 
-const UserItemScroller = (props: Props) => {
+const UserItemScroller = <T,>(props: Props) => { // rename to ItemScroller, T is for the generic types, here it's User, etc.
     const {displayErrorMessage} = useMessageActions();
     const [items, setItems] = useState<User[]>([]);
 

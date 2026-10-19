@@ -6,11 +6,12 @@ import AuthenticationFormLayout from "../AuthenticationFormLayout";
 import { Buffer } from "buffer";
 import AuthenticationFields from "../AuthenticationFields";
 import {useMessageActions} from "../../toaster/MessageHooks";
-import {RegisterPresenter, RegisterView} from "../../../model.presenter/RegisterPresenter";
+import {RegisterPresenter} from "../../../model.presenter/RegisterPresenter";
 import {UserInfoActionsHook} from "../../userInfo/UserHooks";
+import {AuthView} from "../../../model.presenter/AuthPresenter";
 
 interface Props {
-  presenterFactory: (view: RegisterView) => RegisterPresenter;
+  presenterFactory: (view: AuthView) => RegisterPresenter;
 }
 
 const Register = (props: Props) => {
@@ -28,7 +29,7 @@ const Register = (props: Props) => {
   const { updateUserInfo } = UserInfoActionsHook();
   const { displayErrorMessage } = useMessageActions();
 
-  const listener: RegisterView = {
+  const listener: AuthView = {
     navigate: navigate,
     displayErrorMessage: displayErrorMessage,
     setImageUrl: setImageUrl,

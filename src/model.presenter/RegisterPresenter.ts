@@ -3,9 +3,8 @@ import {AuthPresenter, AuthView} from "./AuthPresenter";
 import { User, AuthToken } from "tweeter-shared";
 
 
-export interface RegisterView extends AuthView {
-
-}
+// export interface RegisterView extends AuthView {
+// }
 
 export class RegisterPresenter extends AuthPresenter {
 

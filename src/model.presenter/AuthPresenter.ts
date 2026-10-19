@@ -6,7 +6,6 @@ import {AuthToken, User} from "tweeter-shared";
 
 export interface AuthView extends View {
     navigate: (url: string) => void;
-    displayErrorMessage: (message: string) => void;
     setImageUrl: (url: string) => void;
     setImageBytes: (array: Uint8Array) => void;
     setImageFileExtension: (extension: string) => void;

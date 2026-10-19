@@ -5,7 +5,6 @@ import {Presenter, View} from "./Presenter";
 export interface UserInfoView extends View {
     setFolloweeCount: (count: number) => void;
     setFollowerCount: (count: number) => void;
-    displayErrorMessage: (message: string) => void;
     setIsFollower: (is: boolean) => void;
 }
 

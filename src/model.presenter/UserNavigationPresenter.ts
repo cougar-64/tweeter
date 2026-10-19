@@ -4,7 +4,6 @@ import {Presenter, View} from "./Presenter";
 
 
 export interface UserNavigationView extends View {
-    displayErrorMessage: (message: string) => string;
     displayedUser: User | null;
     setDisplayedUser: (user: User) => void;
     authToken: AuthToken | null;
@@ -26,7 +25,7 @@ export class UserNavigationPresenter extends Presenter<UserNavigationView>{
     public async navigateToUser (event: React.MouseEvent): Promise<void> {
         event.preventDefault();
 
-        try {
+        await this.doFailureReportingOperation(async () => {
             const alias = this.extractAlias(event.target.toString());
 
             const toUser = await this.getUser(this.view.authToken!, alias);
@@ -37,11 +36,7 @@ export class UserNavigationPresenter extends Presenter<UserNavigationView>{
                     this._navigate(`${this._featurePath}/${toUser.alias}`);
                 }
             }
-        } catch (error) {
-            this.view.displayErrorMessage(
-                `Failed to get user because of exception: ${error}`,
-            );
-        }
+        }, "get user");
     };
 
     public extractAlias (value: string): string {
