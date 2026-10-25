@@ -5,7 +5,7 @@ import Image from "react-bootstrap/Image";
 import { AuthToken } from "tweeter-shared";
 import {useMessageActions} from "../toaster/MessageHooks";
 import {UserInfoActionsHook, UserInfoHook} from "../userInfo/UserHooks";
-import {LogoutPresenter} from "../../model.presenter/LogoutPresenter";
+import {LogoutPresenter, LogoutView} from "../../model.presenter/LogoutPresenter";
 
 const AppNavbar = () => {
   const location = useLocation();
@@ -14,27 +14,34 @@ const AppNavbar = () => {
   const navigate = useNavigate();
   const { displayInfoMessage, displayErrorMessage, deleteMessage } = useMessageActions();
 
-  const _logoutPresenter = new LogoutPresenter();
+  const listener: LogoutView = {
+    navigate: navigate,
+    displayInfoMessage: displayInfoMessage,
+    displayErrorMessage: displayErrorMessage,
+    deleteMessage: deleteMessage,
+    clearUserInfo: clearUserInfo,
+  }
+  const _logoutPresenter = new LogoutPresenter(listener);
 
-  const logOut = async () => {
-    const loggingOutToastId = displayInfoMessage("Logging Out...", 0);
+  // const logOut = async () => {
+  //   const loggingOutToastId = displayInfoMessage("Logging Out...", 0);
+  //
+  //   try {
+  //     await logout(authToken!);
+  //
+  //     deleteMessage(loggingOutToastId);
+  //     clearUserInfo();
+  //     navigate("/login");
+  //   } catch (error) {
+  //     displayErrorMessage(
+  //       `Failed to log user out because of exception: ${error}`,
+  //     );
+  //   }
+  // };
 
-    try {
-      await logout(authToken!);
-
-      deleteMessage(loggingOutToastId);
-      clearUserInfo();
-      navigate("/login");
-    } catch (error) {
-      displayErrorMessage(
-        `Failed to log user out because of exception: ${error}`,
-      );
-    }
-  };
-
-  const logout = async (authToken: AuthToken): Promise<void> => {
+  const logout = async (): Promise<void> => {
     // Pause so we can see the logging out message. Delete when the call to the server is implemented.
-    await _logoutPresenter.logout(authToken);
+    _logoutPresenter.logOut(authToken!);
   };
 
   return (
@@ -114,7 +121,7 @@ const AppNavbar = () => {
             <Nav.Item>
               <NavLink
                 id="logout"
-                onClick={logOut}
+                onClick={logout}
                 to={location.pathname}
                 className={({ isActive }) =>
                   isActive ? "nav-link active" : "nav-link"

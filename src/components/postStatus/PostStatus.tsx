@@ -4,6 +4,7 @@ import { AuthToken, Status } from "tweeter-shared";
 import {useMessageActions} from "../toaster/MessageHooks";
 import {UserInfoHook} from "../userInfo/UserHooks";
 import {PostPresenter} from "../../model.presenter/PostPresenter";
+import {PLPView} from "../../model.presenter/PLParent";
 
 const PostStatus = () => {
   const { displayInfoMessage, displayErrorMessage, deleteMessage } = useMessageActions();
@@ -12,7 +13,13 @@ const PostStatus = () => {
   const [post, setPost] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const _postPresenter = new PostPresenter();
+  const listener: PLPView = {
+    displayInfoMessage: displayInfoMessage,
+    displayErrorMessage: displayErrorMessage,
+    deleteMessage: deleteMessage,
+  }
+
+  const _postPresenter = new PostPresenter(listener);
 
   const submitPost = async (event: React.MouseEvent) => {
     event.preventDefault();

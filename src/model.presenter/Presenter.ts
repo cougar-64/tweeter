@@ -5,7 +5,7 @@ export interface View {
 }
 
 export abstract class Presenter<V extends View> {
-    private _view: V;
+    protected _view: V;
     protected constructor(view: V) {
         this._view = view;
     }
@@ -22,4 +22,8 @@ export abstract class Presenter<V extends View> {
             );
         }
     };
+
+    // Generics take a generic type and allow the subclasses to pass in the type they'd like.
+    // It helps remove duplicate code by just allowing the subclasses to pass in the type. All the logic is the same
+    // in these two classes.
 }

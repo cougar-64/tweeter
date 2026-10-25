@@ -66,4 +66,8 @@ export abstract class PagedItemPresenter<T, U extends Service> extends Presenter
 
     protected abstract itemDescription(): string;
     protected abstract getMoreItems(authToken: AuthToken, userAlias: string): Promise<[T[], boolean]>
+
+    // The template method pattern is literally a template. It has some logic that needs to be executed
+    // but saves part of it for the subclasses to implement.
+    // it's implemented here in loadMoreItems where it asks getMoreItems and itemDescription to flesh out the logic.
 }

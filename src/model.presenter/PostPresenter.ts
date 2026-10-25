@@ -1,8 +1,8 @@
 import {AuthToken} from "tweeter-shared";
 import {StatusService} from "../model.service/StatusService";
-import {PLParent} from "./PLParent";
+import {PLParent, PLPView} from "./PLParent";
 
-export class PostPresenter extends PLParent<StatusService>{
+export class PostPresenter extends PLParent<PLPView, StatusService>{
 
     protected serviceFactory(): StatusService {
         return new StatusService();

@@ -89,3 +89,8 @@ const UnauthenticatedRoutes = () => {
 };
 
 export default App;
+
+// functions as parameters deduplicates by allowing the code to have the same logic executed while calling different class methods.
+
+// the template pattern doesn't require functions to be passed as parameters, sometimes you can simply execute the logic
+// differently in the template pattern. Functions passed as parameters will always require... functions passed as parameters.
