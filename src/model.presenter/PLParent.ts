@@ -16,5 +16,9 @@ export abstract class PLParent<V extends PLPView, T extends Service> extends Pre
         this._service = this.serviceFactory();
     }
 
+    public get service() {
+        return this._service;
+    }
+
     protected abstract serviceFactory(): T;
 }

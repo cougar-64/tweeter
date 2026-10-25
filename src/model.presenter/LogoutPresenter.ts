@@ -14,7 +14,7 @@ export class LogoutPresenter extends PLParent<LogoutView, UserService>{
     }
 
     public async logout(authToken: AuthToken): Promise<void> {
-        await this._service.logout(authToken);
+        await this.service.logout(authToken);
     }
 
     public async logOut(authToken: AuthToken) {
