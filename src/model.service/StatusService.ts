@@ -22,7 +22,7 @@ export class StatusService implements Service {
         return FakeData.instance.getPageOfStatuses(lastItem, pageSize);
     };
 
-    public async postStatus(authToken: AuthToken) {
+    public async postStatus(authToken: AuthToken, status: Status) {
         await new Promise((f) => setTimeout(f, 2000));
     }
 }

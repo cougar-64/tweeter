@@ -28,7 +28,7 @@ describe("LogoutPresenter", () => {
 
     it("calls logout on the user service with the correct auth token.", async () => {
         await logoutPresenter.logOut(authToken);
-        verify(mockService.logout(authToken)).once()
+        verify(mockService.logout(authToken)).once();
 
         // let [capturedAuthToken] = capture(mockService.logout).last();
         // expect(capturedAuthToken).toEqual(authToken);

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { AuthToken, Status } from "tweeter-shared";
 import {useMessageActions} from "../toaster/MessageHooks";
 import {UserInfoHook} from "../userInfo/UserHooks";
-import {PostPresenter} from "../../model.presenter/PostPresenter";
+import {PostPresenter, PostView} from "../../model.presenter/PostPresenter";
 import {PLPView} from "../../model.presenter/PLParent";
 
 const PostStatus = () => {
@@ -13,50 +13,19 @@ const PostStatus = () => {
   const [post, setPost] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const listener: PLPView = {
+  const listener: PostView = {
     displayInfoMessage: displayInfoMessage,
     displayErrorMessage: displayErrorMessage,
     deleteMessage: deleteMessage,
+    setIsLoading: setIsLoading,
+    setPost: setPost,
   }
 
   const _postPresenter = new PostPresenter(listener);
 
   const submitPost = async (event: React.MouseEvent) => {
     event.preventDefault();
-
-    var postingStatusToastId = "";
-
-    try {
-      setIsLoading(true);
-      postingStatusToastId = displayInfoMessage(
-        "Posting status...",
-        0,
-      );
-
-      const status = new Status(post, currentUser!, Date.now());
-
-      await postStatus(authToken!, status);
-
-      setPost("");
-      displayInfoMessage( "Status posted!", 2000);
-    } catch (error) {
-      displayErrorMessage(
-        `Failed to post the status because of exception: ${error}`,
-      );
-    } finally {
-      deleteMessage(postingStatusToastId);
-      setIsLoading(false);
-    }
-  };
-
-  const postStatus = async (
-    authToken: AuthToken,
-    newStatus: Status,
-  ): Promise<void> => {
-    // Pause so we can see the logging out message. Remove when connected to the server
-    return _postPresenter.logout(authToken);
-
-    // TODO: Call the server to post the status
+    await _postPresenter.submitPost(post, currentUser!, authToken!);
   };
 
   const clearPost = (event: React.MouseEvent) => {

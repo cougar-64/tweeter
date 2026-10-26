@@ -23,25 +23,9 @@ const AppNavbar = () => {
   }
   const _logoutPresenter = new LogoutPresenter(listener);
 
-  // const logOut = async () => {
-  //   const loggingOutToastId = displayInfoMessage("Logging Out...", 0);
-  //
-  //   try {
-  //     await logout(authToken!);
-  //
-  //     deleteMessage(loggingOutToastId);
-  //     clearUserInfo();
-  //     navigate("/login");
-  //   } catch (error) {
-  //     displayErrorMessage(
-  //       `Failed to log user out because of exception: ${error}`,
-  //     );
-  //   }
-  // };
-
   const logout = async (): Promise<void> => {
     // Pause so we can see the logging out message. Delete when the call to the server is implemented.
-    _logoutPresenter.logOut(authToken!);
+    await _logoutPresenter.logOut(authToken!);
   };
 
   return (
