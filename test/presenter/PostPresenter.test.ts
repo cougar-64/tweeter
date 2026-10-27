@@ -12,7 +12,6 @@ describe("PostPresenter", () => {
 
     const authToken = new AuthToken("abc123", Date.now());
     const user = new User("first", "last", "alias", "url")
-    const status = new Status("post", user, 1)
 
     beforeEach(() => {
         mockPostPresenterView = mock<PostView>();
