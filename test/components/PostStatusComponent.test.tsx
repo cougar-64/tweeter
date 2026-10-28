@@ -8,13 +8,12 @@ import {fab} from "@fortawesome/free-brands-svg-icons";
 import { UserInfoContext } from "../../src/components/userInfo/UserInfoContexts";
 import {AuthToken, Status, User} from "tweeter-shared";
 import {PostPresenter} from "../../src/model.presenter/PostPresenter";
-import {anything, instance, mock, verify} from "@typestrong/ts-mockito";
+import {instance, mock, verify} from "@typestrong/ts-mockito";
 
 library.add(fab);
 
 const authToken = new AuthToken("abc123", Date.now());
 const newUser = new User("first", "last", "alias", "url");
-const status = new Status("post", newUser, 1);
 describe("Post component", () => {
     it("starts with the post status and clear buttons disabled", () => {
         const {postStatusButton, clearButton} = renderPostAndGetElements();
@@ -41,14 +40,14 @@ describe("Post component", () => {
         expect(clearButton).toBeDisabled();
     })
 
-    it("calls the presenters login method with correct parameters when the post status button is pressed", async () => {
+    it("calls the presenters post method with correct parameters when the post status button is pressed", async () => {
         const mockPresenter = mock<PostPresenter>();
         const mockPresenterInstance = instance(mockPresenter);
 
-        const {statusField, postStatusButton, clearButton, user} = renderPostAndGetElements(mockPresenterInstance);
+        const {statusField, postStatusButton, user} = renderPostAndGetElements(mockPresenterInstance);
         await user.type(statusField, "a");
         await user.click(postStatusButton);
-        verify(mockPresenter.submitPost(anything(), newUser, authToken)).once();
+        verify(mockPresenter.submitPost("a", newUser, authToken)).once();
     })
 })
 

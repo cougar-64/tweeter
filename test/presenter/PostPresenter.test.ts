@@ -2,7 +2,6 @@ import {anything, capture, instance, mock, spy, verify, when} from "@typestrong/
 import {PostPresenter, PostView} from "../../src/model.presenter/PostPresenter";
 import {StatusService} from "../../src/model.service/StatusService";
 import {AuthToken, Status, User} from "tweeter-shared";
-import {UserService} from "../../src/model.service/UserService";
 
 
 describe("PostPresenter", () => {
@@ -11,7 +10,8 @@ describe("PostPresenter", () => {
     let mockService: StatusService;
 
     const authToken = new AuthToken("abc123", Date.now());
-    const user = new User("first", "last", "alias", "url")
+    const user = new User("first", "last", "alias", "url");
+    const status = new Status("post", user, Date.now());
 
     beforeEach(() => {
         mockPostPresenterView = mock<PostView>();
@@ -27,15 +27,16 @@ describe("PostPresenter", () => {
 
     it("tells the view to display a posting status message", async () => {
         await postPresenter.submitPost("post", user, authToken);
-        verify(mockPostPresenterView.displayInfoMessage(anything(), 0)).once();
+        verify(mockPostPresenterView.displayInfoMessage("Posting status...", 0)).once();
     })
 
     it("calls postStatus on the post status service with the correct status string and auth token.", async () => {
         await postPresenter.submitPost("post", user, authToken);
         verify(mockService.postStatus(authToken, anything())).once();
 
-        let [capturedAuth, capturedStatus] = capture(mockService.postStatus).last();
-        expect(capturedAuth).toBe(authToken);
+        let [,capturedStatus] = capture(mockService.postStatus).last();
+        expect(capturedStatus.post).toBe(status.post);
+        expect(capturedStatus.user).toBe(status.user);
     })
 
     it("tells the view to clear the info message that was displayed previously, clear the post, and display a status posted message when successful", async () => {
@@ -54,7 +55,7 @@ describe("PostPresenter", () => {
         await postPresenter.submitPost("post", user, authToken);
         verify(mockPostPresenterView.displayErrorMessage("Failed to post the status because of exception: Error: Error occurred.")).once();
         verify(mockPostPresenterView.setPost(anything())).never();
-        verify(mockPostPresenterView.displayInfoMessage(anything(), anything())).never
+        verify(mockPostPresenterView.displayInfoMessage(anything(), anything())).once();
 
     })
 })
