@@ -17,3 +17,8 @@
 - Tool: OpenAI Codex
 - Task: Implement the server followers service and Lambda handler, including request validation, user DTO conversion, and FakeData pagination. Add the required TypeScript attribution comments and leave the changes uncommitted for review.
 - Review: `FollowService.ts` in the server calls FakeData. This is implementing the database layer, not calling serverFacade. `GetFollowersLambda.ts` formats the validateRequest function in terms that AWS Lambda will be able to understand. Review complete. 
+
+## 2026-11-03: template.yaml (new file), Makefile (new file), tweeter-server/events/get-followers.json (new file), package.json, package-lock.json, .gitignore, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Set up AWS SAM for the followers feature, including a Lambda and non-proxy REST API template, error mappings, CORS, and a bundled deployment artifact containing tweeter-shared. Install and verify the SAM CLI, document build and deployment steps, and validate the local build without deploying AWS resources.
+- Review: `template.yaml` explains what SAM will show for the followers feature. Lambda has already been created, and CORS and error mapping are defined as well on lines 31 and 75-104 respectively.

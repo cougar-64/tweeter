@@ -24,6 +24,10 @@ yarn-error.log*
 
 dist/
 
+# SAM build artifacts and local deployment settings
+.aws-sam/
+samconfig.toml
+
 # Keep shared Git mapping; ignore personal IDE settings.
 .idea/*
 !.idea/vcs.xml
