@@ -1,0 +1,14 @@
+{
+  "name": "tweeter-server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "tweeter-shared": "file:../tweeter-shared"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.2"
+  }
+}
