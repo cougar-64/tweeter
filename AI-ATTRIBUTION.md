@@ -22,3 +22,13 @@
 - Tool: OpenAI Codex
 - Task: Set up AWS SAM for the followers feature, including a Lambda and non-proxy REST API template, error mappings, CORS, and a bundled deployment artifact containing tweeter-shared. Install and verify the SAM CLI, document build and deployment steps, and validate the local build without deploying AWS resources.
 - Review: `template.yaml` explains what SAM will show for the followers feature. Lambda has already been created, and CORS and error mapping are defined as well on lines 31 and 75-104 respectively.
+
+## 2026-11-03: template.yaml, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Deploy and test the approved followers backend, and record its deployed URL and verification results. Replace the broad API Gateway fallback error pattern with an explicit check for Lambda error payloads so successful responses use HTTP 200 and unexpected errors use HTTP 500.
+- Review: Standard Lambda errors now contain errorMessage; successful page responses do not.
+
+## 2026-11-03: tweeter-web/test/integration/FollowersEndpoint.test.ts (new file), tweeter-web/jest.integration.config.cjs (new file), tweeter-web/package.json, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Add repeatable Jest integration tests for the deployed followers endpoint, including expected data, pagination, validation errors, and CORS. Configure a separate Node-based integration test command and document how to run it alongside the existing component and presenter tests.
+- Review: TODO

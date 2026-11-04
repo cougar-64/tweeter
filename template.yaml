@@ -84,7 +84,15 @@ Resources:
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
                     responseTemplates:
-                      application/json: '$input.json("$")'
+                      # Standard Lambda errors contain errorMessage; successful page responses do not.
+                      application/json: |
+                        #set($result = $input.path('$'))
+                        #if($result.containsKey("errorMessage"))
+                        #set($context.responseOverride.status = 500)
+                        {"errorMessage": "An unexpected server error occurred."}
+                        #else
+                        $input.json("$")
+                        #end
                   # Match validation errors from GetFollowersLambda.
                   '(?s)^\[Bad Request\].*':
                     statusCode: '400'
@@ -93,15 +101,6 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Match all other Lambda errors, including multiline messages.
-                  '(?s)^(?!\[Bad Request\]).*':
-                    statusCode: '500'
-                    responseParameters:
-                      method.response.header.Access-Control-Allow-Origin: "'*'"
-                    responseTemplates:
-                      application/json: |
-                        {"errorMessage": "An unexpected server error occurred."}
-
   GetFollowersInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:

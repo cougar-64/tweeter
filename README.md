@@ -33,6 +33,24 @@ non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
 starting with `[Bad Request]`, and 500 for other Lambda errors. CORS is configured
 for preflight requests, Lambda responses, and API Gateway errors.
 
+The development stack is `tweeter-m3` in `us-east-1`, with stage `dev`.
+Its deployed API base URL is:
+
+```text
+https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
+```
+
+The followers endpoint is `POST /followers/list`. Live checks verified pages of
+10, 10, and 1 users, invalid requests returning HTTP 400, and CORS on successful
+responses, validation errors, preflight requests, and missing routes.
+
+The default response template checks for Lambda's `errorMessage` field and uses
+`$context.responseOverride.status` to return HTTP 500 for unexpected errors.
+This avoids a broad error regex also selecting successful responses.
+[AWS documents response status overrides here](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-override-request-response-parameters.html).
+Unexpected-error handling is configured; a server failure has not been
+deliberately injected into the deployed Lambda.
+
 Install Node.js 24, npm, make, the AWS CLI, and the
 [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html).
 Check SAM with `sam --version`. Docker is not needed for this build; SAM's local
@@ -101,3 +119,39 @@ Expect HTTP 200 with followers, HTTP 400 with an `errorMessage`, and a successfu
 OPTIONS response allowing POST and Content-Type. Check for
 `Access-Control-Allow-Origin: *` on each response. HTTP mappings and deployed
 CORS still need verification against AWS after deployment.
+
+## Running Tests
+
+Run the component and presenter tests from the repository root:
+
+```sh
+npm test --workspace tweeter-web -- --runInBand
+```
+
+Run the deployed followers endpoint integration tests separately:
+
+```sh
+npm run test:integration --workspace tweeter-web
+```
+
+These tests make real HTTP requests to the development API and require network
+access and a deployed backend. They check the expected first page, pagination,
+HTTP 400 validation errors, and CORS response headers, including OPTIONS
+preflight and an unknown route. They do not emulate a browser enforcing CORS.
+The first-page HTTP 200 assertion also guards against the response-mapping
+regression found during deployment. No server failure is deliberately injected.
+
+`jest.integration.config.cjs` reuses the existing TypeScript transforms but runs
+in Node, where fetch is available, rather than the component tests' simulated
+browser environment. Each request has a ten-second timeout. The default test
+command excludes integration tests so component/presenter tests can run offline.
+
+To test another deployment, override the base URL (including its stage):
+
+```sh
+TWEETER_API_BASE_URL=https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/dev npm run test:integration --workspace tweeter-web
+```
+
+These endpoint tests exercise API Gateway and Lambda directly. The assignment's
+ServerFacade and client StatusService integration tests will be added as those
+client paths are implemented.

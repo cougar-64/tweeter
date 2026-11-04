@@ -27,7 +27,8 @@
     "build": "tsc && vite build",
     "serve": "vite preview",
     "reload": "npm run build && npm run serve",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "test:integration": "jest --config jest.integration.config.cjs --runInBand"
   },
   "eslintConfig": {
     "extends": [
@@ -69,6 +70,10 @@
   "jest": {
     "verbose": true,
     "testEnvironment": "jsdom",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/test/integration/"
+    ],
     "moduleNameMapper": {
       "\\.(css|less)$": "<rootDir>/test/__mocks__/styleMock.js"
     },
