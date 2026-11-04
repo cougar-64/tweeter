@@ -120,6 +120,32 @@ OPTIONS response allowing POST and Content-Type. Check for
 `Access-Control-Allow-Origin: *` on each response. HTTP mappings and deployed
 CORS still need verification against AWS after deployment.
 
+## Client Followers Network Path
+
+Followers is the first feature connected through the client network layer:
+
+```text
+FollowerPresenter -> client FollowService -> ServerFacade -> ClientCommunicator -> API Gateway -> Lambda -> server FollowService
+```
+
+The client service builds a `PagedUserItemRequest` using the token string and the
+last user's DTO. `ClientCommunicator` sends JSON over HTTP and propagates HTTP
+errors. `ServerFacade` checks the response fields and converts user DTOs into
+`User` instances, preserving getters and methods such as `name` and `equals`.
+It returns the `[User[], boolean]` tuple the presenter already expects.
+
+`ServerFacade` defaults to the deployed development API and accepts another base
+URL in its constructor. The client `FollowService` accepts a facade in its
+constructor, which lets integration tests select a deployment explicitly.
+
+For a browser check, run `npm start --workspace tweeter-web`, sign in using the
+existing dummy login, and open **Followers**. In the browser developer tools,
+open Network and filter for `followers/list`. Check that POST requests go to the
+deployed API, the first request has `lastItem: null`, and later requests contain
+the previous page's final user DTO. For `@allen`, scrolling should retrieve
+pages of 10, 10, and 1 followers and then stop. This browser check is separate
+from the automated Node integration tests.
+
 ## Running Tests
 
 Run the component and presenter tests from the repository root:
@@ -152,6 +178,9 @@ To test another deployment, override the base URL (including its stage):
 TWEETER_API_BASE_URL=https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/dev npm run test:integration --workspace tweeter-web
 ```
 
-These endpoint tests exercise API Gateway and Lambda directly. The assignment's
-ServerFacade and client StatusService integration tests will be added as those
-client paths are implemented.
+`FollowersEndpoint.test.ts` exercises API Gateway and Lambda directly.
+`ServerFacade.test.ts` tests the required GetFollowers facade feature against
+AWS, including reconstructed `User` instances, pagination, and error propagation.
+It also checks the client `FollowService` path with domain objects as inputs.
+The assignment's register, count, and client StatusService story integration
+tests will be added as those features are implemented.

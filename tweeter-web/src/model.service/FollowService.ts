@@ -1,9 +1,13 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 // view = DUMB! Delegate everything to the presenter
 
-import {AuthToken, FakeData, User} from "tweeter-shared";
+import {AuthToken, FakeData, PagedUserItemRequest, User} from "tweeter-shared";
 import {Service} from "./Service";
+import {ServerFacade} from "../net/ServerFacade";
 
 export class FollowService implements Service {
+    public constructor(private readonly serverFacade: ServerFacade = new ServerFacade()) {}
+
     public async loadMoreFollowees (
         authToken: AuthToken,
         userAlias: string,
@@ -20,8 +24,13 @@ export class FollowService implements Service {
         pageSize: number,
         lastItem: User | null
     ): Promise<[User[], boolean]> {
-        // TODO: Replace with the result of calling server
-        return FakeData.instance.getPageOfUsers(lastItem, pageSize, userAlias);
+        const request = new PagedUserItemRequest(
+            authToken.token,
+            userAlias,
+            pageSize,
+            lastItem === null ? null : lastItem.dto
+        );
+        return this.serverFacade.getMoreFollowers(request);
     };
 
     public async getIsFollowerStatus (

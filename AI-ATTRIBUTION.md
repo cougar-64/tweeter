@@ -31,4 +31,9 @@
 ## 2026-11-03: tweeter-web/test/integration/FollowersEndpoint.test.ts (new file), tweeter-web/jest.integration.config.cjs (new file), tweeter-web/package.json, README.md, AI-ATTRIBUTION.md
 - Tool: OpenAI Codex
 - Task: Add repeatable Jest integration tests for the deployed followers endpoint, including expected data, pagination, validation errors, and CORS. Configure a separate Node-based integration test command and document how to run it alongside the existing component and presenter tests.
-- Review: TODO
+- Review: All tests passing.
+
+## 2026-11-04: tweeter-web/src/net/ClientCommunicator.ts (new file), tweeter-web/src/net/ServerFacade.ts (new file), tweeter-web/src/model.service/FollowService.ts, tweeter-web/test/integration/ServerFacade.test.ts (new file), README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Connect the client followers feature to the deployed backend through ClientCommunicator and ServerFacade, including response validation and User DTO conversion. Add live facade and client service integration tests, document browser verification, and leave changes uncommitted for review.
+- Review: ClientCommunicator sends JSON requests and handles HTTP errors. `ServerFacade.ts` validates JSON responses and reconstructs User objects. New tests created for serverFacade. All tests passing

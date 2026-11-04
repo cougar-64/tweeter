@@ -1,0 +1,48 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+// validates JSON responses and reconstructs User objects.
+import { User } from "tweeter-shared";
+import type { PagedUserItemRequest, PagedUserItemResponse, UserDto } from "tweeter-shared";
+import { ClientCommunicator } from "./ClientCommunicator";
+
+export class ServerFacade {
+  private readonly clientCommunicator: ClientCommunicator;
+
+  public constructor(
+    serverUrl: string = "https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev"
+  ) {
+    this.clientCommunicator = new ClientCommunicator(serverUrl);
+  }
+
+  public async getMoreFollowers(request: PagedUserItemRequest): Promise<[User[], boolean]> {
+    const response = await this.clientCommunicator.doPost<
+      PagedUserItemRequest,
+      PagedUserItemResponse
+    >(request, "/followers/list");
+
+    if (!response.success) {
+      throw new Error(response.message ?? "Failed to load followers.");
+    }
+    if (
+      !Array.isArray(response.items) ||
+      !response.items.every((item: unknown) => this.isUserDto(item)) ||
+      typeof response.hasMore !== "boolean"
+    ) {
+      throw new Error("Invalid followers response.");
+    }
+
+    return [response.items.map((dto) => User.fromDto(dto)), response.hasMore];
+  }
+
+  private isUserDto(value: unknown): value is UserDto {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    const user = value as Partial<UserDto>;
+    return (
+      typeof user.firstName === "string" &&
+      typeof user.lastName === "string" &&
+      typeof user.alias === "string" &&
+      typeof user.imageUrl === "string"
+    );
+  }
+}
