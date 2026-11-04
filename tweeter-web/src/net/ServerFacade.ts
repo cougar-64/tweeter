@@ -14,20 +14,32 @@ export class ServerFacade {
   }
 
   public async getMoreFollowers(request: PagedUserItemRequest): Promise<[User[], boolean]> {
+    return this.getPagedUsers(request, "/followers/list", "followers");
+  }
+
+  public async getMoreFollowees(request: PagedUserItemRequest): Promise<[User[], boolean]> {
+    return this.getPagedUsers(request, "/followees/list", "followees");
+  }
+
+  private async getPagedUsers(
+    request: PagedUserItemRequest,
+    endpoint: string,
+    itemDescription: string
+  ): Promise<[User[], boolean]> {
     const response = await this.clientCommunicator.doPost<
       PagedUserItemRequest,
       PagedUserItemResponse
-    >(request, "/followers/list");
+    >(request, endpoint);
 
     if (!response.success) {
-      throw new Error(response.message ?? "Failed to load followers.");
+      throw new Error(response.message ?? `Failed to load ${itemDescription}.`);
     }
     if (
       !Array.isArray(response.items) ||
       !response.items.every((item: unknown) => this.isUserDto(item)) ||
       typeof response.hasMore !== "boolean"
     ) {
-      throw new Error("Invalid followers response.");
+      throw new Error(`Invalid ${itemDescription} response.`);
     }
 
     return [response.items.map((dto) => User.fromDto(dto)), response.hasMore];

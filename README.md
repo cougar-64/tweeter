@@ -25,10 +25,10 @@ Rebuild either module of the project (tweeter-shared or tweeter-web) by running 
 
 Run the project by running 'npm start' from within the 'tweeter-web' folder.
 
-## Followers Backend with AWS SAM
+## Followers and Followees Backend with AWS SAM
 
-The root `template.yaml` describes one Lambda and a REST API with
-`POST /followers/list`. The handler receives the JSON request directly through a
+The root `template.yaml` describes a Lambda for each follow list and a REST API
+with `POST /followers/list` and `POST /followees/list`. Each handler receives the JSON request directly through a
 non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
 starting with `[Bad Request]`, and 500 for other Lambda errors. CORS is configured
 for preflight requests, Lambda responses, and API Gateway errors.
@@ -43,6 +43,18 @@ https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 The followers endpoint is `POST /followers/list`. Live checks verified pages of
 10, 10, and 1 users, invalid requests returning HTTP 400, and CORS on successful
 responses, validation errors, preflight requests, and missing routes.
+
+The followees implementation is prepared locally. Its endpoint and live tests
+will become available after the updated stack is deployed. Both handlers use
+`validatePagedUserItemRequest` to enforce the same paginated-user request
+contract. `get-followers.json` and `get-followees.json` contain sample requests.
+
+`PagedUserLambda` uses the Template Method pattern: its `handle` method validates
+the request, reconstructs the pagination cursor, calls `loadPage`, and constructs
+the response DTOs. `GetFollowersLambda` and `GetFolloweesLambda` extend this base
+class and implement `loadPage` by calling their respective service methods.
+Each Lambda file exports a `handler` function that delegates to its subclass's
+inherited `handle` method, matching the existing SAM handler configuration.
 
 The default response template checks for Lambda's `errorMessage` field and uses
 `$context.responseOverride.status` to return HTTP 500 for unexpected errors.
@@ -67,8 +79,9 @@ sam build --build-in-source
 `--build-in-source` lets the Makefile use the existing npm workspaces without
 copying the entire repository and its dependencies into a temporary source tree.
 The Makefile compiles shared code before server code, then uses esbuild to bundle
-the handler, shared code, and runtime dependencies into
-`.aws-sam/build/GetFollowersFunction/GetFollowersLambda.js`. The package does not
+each handler, shared code, and runtime dependencies into
+`.aws-sam/build/GetFollowersFunction/GetFollowersLambda.js` and
+`.aws-sam/build/GetFolloweesFunction/GetFolloweesLambda.js`. Each package does not
 depend on workspace symlinks or a separate Lambda layer. TypeScript compilation
 checks types before bundling. Generated files are ignored by Git.
 
@@ -120,12 +133,12 @@ OPTIONS response allowing POST and Content-Type. Check for
 `Access-Control-Allow-Origin: *` on each response. HTTP mappings and deployed
 CORS still need verification against AWS after deployment.
 
-## Client Followers Network Path
+## Client Follow Lists Network Path
 
-Followers is the first feature connected through the client network layer:
+Followers and followees share the client network layer:
 
 ```text
-FollowerPresenter -> client FollowService -> ServerFacade -> ClientCommunicator -> API Gateway -> Lambda -> server FollowService
+FollowerPresenter / FolloweePresenter -> client FollowService -> ServerFacade -> ClientCommunicator -> API Gateway -> Lambda -> server FollowService
 ```
 
 The client service builds a `PagedUserItemRequest` using the token string and the
@@ -133,6 +146,8 @@ last user's DTO. `ClientCommunicator` sends JSON over HTTP and propagates HTTP
 errors. `ServerFacade` checks the response fields and converts user DTOs into
 `User` instances, preserving getters and methods such as `name` and `equals`.
 It returns the `[User[], boolean]` tuple the presenter already expects.
+The facade's `getMoreFollowers` and `getMoreFollowees` methods select their own
+endpoints and share a private helper for response validation and DTO conversion.
 
 `ServerFacade` defaults to the deployed development API and accepts another base
 URL in its constructor. The client `FollowService` accepts a facade in its
@@ -145,16 +160,18 @@ deployed API, the first request has `lastItem: null`, and later requests contain
 the previous page's final user DTO. For `@allen`, scrolling should retrieve
 pages of 10, 10, and 1 followers and then stop. This browser check is separate
 from the automated Node integration tests.
+After deploying followees, repeat this check in **Followees**, filtering Network
+for `followees/list`. The FakeData implementation returns the same dummy pages.
 
 ## Running Tests
 
-Run the component and presenter tests from the repository root:
+Run the offline component, presenter, and Lambda handler tests from the repository root:
 
 ```sh
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-Run the deployed followers endpoint integration tests separately:
+After deploying both routes, run the live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -166,6 +183,12 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
+
+Before the followees deployment, run only the existing followers live tests:
+
+```sh
+npm run test:integration --workspace tweeter-web -- --runTestsByPath test/integration/ServerFacade.test.ts test/integration/FollowersEndpoint.test.ts
+```
 
 `jest.integration.config.cjs` reuses the existing TypeScript transforms but runs
 in Node, where fetch is available, rather than the component tests' simulated
@@ -182,5 +205,8 @@ TWEETER_API_BASE_URL=https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/dev
 `ServerFacade.test.ts` tests the required GetFollowers facade feature against
 AWS, including reconstructed `User` instances, pagination, and error propagation.
 It also checks the client `FollowService` path with domain objects as inputs.
+`Followees.test.ts` adds followees facade/service pagination, validation errors,
+and preflight checks. `test/server/FollowLambdas.test.ts` tests both handlers and
+the shared request validation locally, without AWS or HTTP calls.
 The assignment's register, count, and client StatusService story integration
 tests will be added as those features are implemented.

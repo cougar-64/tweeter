@@ -37,3 +37,13 @@
 - Tool: OpenAI Codex
 - Task: Connect the client followers feature to the deployed backend through ClientCommunicator and ServerFacade, including response validation and User DTO conversion. Add live facade and client service integration tests, document browser verification, and leave changes uncommitted for review.
 - Review: ClientCommunicator sends JSON requests and handles HTTP errors. `ServerFacade.ts` validates JSON responses and reconstructs User objects. New tests created for serverFacade. All tests passing
+
+## 2026-11-04: tweeter-server/src/lambda/follow/GetFolloweesLambda.ts (new file), tweeter-server/src/lambda/validation/validatePagedUserItemRequest.ts (new file), tweeter-server/src/lambda/follow/GetFollowersLambda.ts, tweeter-server/src/model/service/FollowService.ts, tweeter-server/events/get-followees.json (new file), tweeter-web/src/net/ServerFacade.ts, tweeter-web/src/model.service/FollowService.ts, tweeter-web/test/integration/Followees.test.ts (new file), tweeter-web/test/server/FollowLambdas.test.ts (new file), template.yaml, Makefile, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare the followees feature through the server Lambda, SAM API configuration, client facade, and client service, reusing paginated-user validation and response conversion. Add offline handler tests, followees integration tests, a sample request, and documentation before deployment review.
+- Review: `validatePagedItemUserRequest` takes on the logic of validating a request for `getFollowersLambda.ts`. **CODEX created duplicate files for getFollowersLambda.ts and getFolloweesLambda.ts so it will be refactored before pushing**  
+
+## 2026-11-04: tweeter-server/src/lambda/PagedUserLambda.ts (new file), tweeter-server/src/lambda/follow/GetFollowersLambda.ts, tweeter-server/src/lambda/follow/GetFolloweesLambda.ts, tweeter-web/test/server/FollowLambdas.test.ts, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Refactor followers and followees Lambda handling into a shared abstract PagedUserLambda using the Template Method pattern, with subclasses selecting their service operation. Preserve AWS handler exports, add regression tests for service delegation and error propagation, and document the shared flow.
+- Review: `PagedUserLambda.ts` created to avoid code duplication - `GetFolloweesLambda.ts` and `GetFollowersLambda.ts` inherit and overwrite `loadPage()` method. All tests passing.
