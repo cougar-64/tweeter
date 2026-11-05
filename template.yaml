@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Tweeter Milestone 3 follow lists and follower count Lambdas and REST API.
+Description: Tweeter Milestone 3 follow lists and counts Lambdas and REST API.
 
 Parameters:
   StageName:
@@ -42,6 +42,19 @@ Resources:
     Properties:
       CodeUri: .
       Handler: GetFollowerCountLambda.handler
+      Runtime: nodejs24.x
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 10
+
+  GetFolloweeCountFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      CodeUri: .
+      Handler: GetFolloweeCountLambda.handler
       Runtime: nodejs24.x
       Architectures:
         - arm64
@@ -225,6 +238,55 @@ Resources:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
 
+          /followees/count:
+            post:
+              summary: Get a user's followee count
+              description: Returns the dummy followee count for the supplied user alias.
+              responses:
+                '200':
+                  description: A success flag and followee count.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '400':
+                  description: The token or user alias is missing or invalid.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '500':
+                  description: An unexpected server error occurred.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+              x-amazon-apigateway-integration:
+                type: aws
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetFolloweeCountFunction.Arn}/invocations
+                passthroughBehavior: never
+                requestTemplates:
+                  application/json: '$input.json("$")'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        #set($result = $input.path('$'))
+                        #if($result.containsKey("errorMessage"))
+                        #set($context.responseOverride.status = 500)
+                        {"errorMessage": "An unexpected server error occurred."}
+                        #else
+                        $input.json("$")
+                        #end
+                  '(?s)^\[Bad Request\].*':
+                    statusCode: '400'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+
   GetFollowersInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -252,6 +314,15 @@ Resources:
       SourceAccount: !Ref AWS::AccountId
       SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/followers/count
 
+  GetFolloweeCountInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetFolloweeCountFunction
+      Principal: apigateway.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/followees/count
+
 Outputs:
   ApiBaseUrl:
     Description: Base URL for the client communicator, including the deployed stage.
@@ -265,3 +336,6 @@ Outputs:
   GetFollowerCountFunctionName:
     Description: Follower count Lambda function name for direct invocation and debugging.
     Value: !Ref GetFollowerCountFunction
+  GetFolloweeCountFunctionName:
+    Description: Followee count Lambda function name for direct invocation and debugging.
+    Value: !Ref GetFolloweeCountFunction

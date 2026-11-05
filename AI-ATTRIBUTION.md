@@ -62,3 +62,8 @@
 - Tool: OpenAI Codex
 - Task: Execute the approved follower-count change set, verify the deployed Lambda and HTTP responses, and run all 20 live integration tests. Update the documented deployment status and overall Milestone 3 checklist without changing application code.
 - Review: Browser check shows followers/count reports the correct number of followers as well as status messages including when a user followers another user. All tests passed
+
+## 2026-11-05: tweeter-server/src/lambda/CountLambda.ts (new file), tweeter-server/src/lambda/follow/GetFollowerCountLambda.ts, tweeter-server/src/lambda/follow/GetFolloweeCountLambda.ts (new file), tweeter-server/src/model/service/FollowService.ts, tweeter-server/events/get-followee-count.json (new file), tweeter-web/src/net/ServerFacade.ts, tweeter-web/src/model.service/FollowService.ts, tweeter-web/test/net/ServerFacadeCount.test.ts, tweeter-web/test/server/FollowerCountLambda.test.ts (removed), tweeter-web/test/server/FollowCountLambdas.test.ts (new file), tweeter-web/test/integration/FolloweeCount.test.ts (new file), template.yaml, Makefile, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare followee count through its Lambda, SAM endpoint, client facade/service, sample request, and integration tests. Share count handling with the Template Method pattern, expand and rename count tests to cover both operations, and document the pending deployment.
+- Review: followee count implemented through lambda, SAM, etc. `ServerFacade.ts` deduplicates code by creating a `getCount()` method. ServerFacade looks really good and does the facade job very well.

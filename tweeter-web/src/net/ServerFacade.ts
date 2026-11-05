@@ -22,14 +22,26 @@ export class ServerFacade {
   }
 
   public async getFollowerCount(request: UserAliasRequest): Promise<number> {
+    return this.getCount(request, "/followers/count", "follower");
+  }
+
+  public async getFolloweeCount(request: UserAliasRequest): Promise<number> {
+    return this.getCount(request, "/followees/count", "followee");
+  }
+
+  private async getCount(
+    request: UserAliasRequest,
+    endpoint: string,
+    itemDescription: string
+  ): Promise<number> {
     const response = await this.clientCommunicator.doPost<UserAliasRequest, CountResponse>(
-      request, "/followers/count"
+      request, endpoint
     );
     if (!response.success) {
-      throw new Error(response.message ?? "Failed to load follower count.");
+      throw new Error(response.message ?? `Failed to load ${itemDescription} count.`);
     }
     if (!Number.isInteger(response.count) || response.count < 0) {
-      throw new Error("Invalid follower count response.");
+      throw new Error(`Invalid ${itemDescription} count response.`);
     }
     return response.count;
   }

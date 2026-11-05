@@ -2,6 +2,10 @@
 import { FakeData, User } from "tweeter-shared";
 
 export class FollowService {
+  public async getFolloweeCount(_token: string, userAlias: string): Promise<number> {
+    return FakeData.instance.getFolloweeCount(userAlias);
+  }
+
   public async getFollowerCount(_token: string, userAlias: string): Promise<number> {
     return FakeData.instance.getFollowerCount(userAlias);
   }

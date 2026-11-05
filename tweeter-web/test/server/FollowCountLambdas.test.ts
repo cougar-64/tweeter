@@ -1,10 +1,14 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { handler } from "../../../tweeter-server/src/lambda/follow/GetFollowerCountLambda";
+import { handler as getFollowerCount } from "../../../tweeter-server/src/lambda/follow/GetFollowerCountLambda";
+import { handler as getFolloweeCount } from "../../../tweeter-server/src/lambda/follow/GetFolloweeCountLambda";
 import { FollowService } from "../../../tweeter-server/src/model/service/FollowService";
 
 const request = { token: "milestone-3-test-token", userAlias: "@allen" };
 
-describe("Follower count Lambda", () => {
+describe.each([
+  ["Follower", getFollowerCount, "getFollowerCount"],
+  ["Followee", getFolloweeCount, "getFolloweeCount"],
+] as const)("%s count Lambda", (_feature, handler, serviceMethod) => {
   afterEach(() => jest.restoreAllMocks());
 
   it("returns a whole-number FakeData count from 1 to 10", async () => {
@@ -18,7 +22,7 @@ describe("Follower count Lambda", () => {
   });
 
   it("delegates the token and alias and preserves a zero count", async () => {
-    const operation = jest.spyOn(FollowService.prototype, "getFollowerCount").mockResolvedValue(0);
+    const operation = jest.spyOn(FollowService.prototype, serviceMethod).mockResolvedValue(0);
 
     const response = await handler(request);
 
@@ -28,7 +32,7 @@ describe("Follower count Lambda", () => {
   });
 
   it("propagates service failures", async () => {
-    jest.spyOn(FollowService.prototype, "getFollowerCount").mockRejectedValue(new Error("Service failure"));
+    jest.spyOn(FollowService.prototype, serviceMethod).mockRejectedValue(new Error("Service failure"));
 
     await expect(handler(request)).rejects.toThrow("Service failure");
   });
@@ -42,7 +46,7 @@ describe("Follower count Lambda", () => {
     ["missing alias", { token: request.token }],
     ["blank alias", { ...request, userAlias: " " }],
   ])("rejects %s before calling the service", async (_description, invalidRequest) => {
-    const operation = jest.spyOn(FollowService.prototype, "getFollowerCount");
+    const operation = jest.spyOn(FollowService.prototype, serviceMethod);
 
     await expect(handler(invalidRequest)).rejects.toThrow("[Bad Request]");
     expect(operation).not.toHaveBeenCalled();

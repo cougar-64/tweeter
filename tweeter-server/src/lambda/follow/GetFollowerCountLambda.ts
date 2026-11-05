@@ -1,11 +1,12 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { CountResponse } from "tweeter-shared";
+import type { UserAliasRequest } from "tweeter-shared";
 import { FollowService } from "../../model/service/FollowService";
-import { validateUserAliasRequest } from "../validation/validateUserAliasRequest";
+import { CountLambda } from "../CountLambda";
 
-export async function handler(request: unknown): Promise<CountResponse> {
-  validateUserAliasRequest(request);
-
-  const count = await new FollowService().getFollowerCount(request.token, request.userAlias);
-  return new CountResponse(true, null, count);
+export class GetFollowerCountLambda extends CountLambda {
+  protected loadCount(request: UserAliasRequest): Promise<number> {
+    return new FollowService().getFollowerCount(request.token, request.userAlias);
+  }
 }
+
+export const handler = (request: unknown) => new GetFollowerCountLambda().handle(request);
