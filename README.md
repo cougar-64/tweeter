@@ -40,12 +40,13 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-The followers endpoint is `POST /followers/list`. Live checks verified pages of
-10, 10, and 1 users, invalid requests returning HTTP 400, and CORS on successful
-responses, validation errors, preflight requests, and missing routes.
+Both `POST /followers/list` and `POST /followees/list` are deployed in this stack.
+On 2026-11-05, all 16 live integration tests passed, covering facade and client
+service calls, reconstructed User instances, pagination, validation errors, and
+CORS. Both deployed Lambdas were also invoked directly and returned the expected
+first page. For `@allen`, each list returns pages of 10, 10, and 1 dummy users.
 
-The followees implementation is prepared locally. Its endpoint and live tests
-will become available after the updated stack is deployed. Both handlers use
+Both handlers use
 `validatePagedUserItemRequest` to enforce the same paginated-user request
 contract. `get-followers.json` and `get-followees.json` contain sample requests.
 
@@ -130,8 +131,9 @@ curl -i -X OPTIONS 'YOUR_API_BASE_URL/followers/list' \
 
 Expect HTTP 200 with followers, HTTP 400 with an `errorMessage`, and a successful
 OPTIONS response allowing POST and Content-Type. Check for
-`Access-Control-Allow-Origin: *` on each response. HTTP mappings and deployed
-CORS still need verification against AWS after deployment.
+`Access-Control-Allow-Origin: *` on each response. To check followees, use
+`/followees/list` and `tweeter-server/events/get-followees.json`. Repeat these
+checks after changing the API configuration.
 
 ## Client Follow Lists Network Path
 
@@ -160,7 +162,7 @@ deployed API, the first request has `lastItem: null`, and later requests contain
 the previous page's final user DTO. For `@allen`, scrolling should retrieve
 pages of 10, 10, and 1 followers and then stop. This browser check is separate
 from the automated Node integration tests.
-After deploying followees, repeat this check in **Followees**, filtering Network
+Repeat this check in **Followees**, filtering Network
 for `followees/list`. The FakeData implementation returns the same dummy pages.
 
 ## Running Tests
@@ -171,7 +173,7 @@ Run the offline component, presenter, and Lambda handler tests from the reposito
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-After deploying both routes, run the live integration tests separately:
+Run the live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -184,7 +186,7 @@ preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
 
-Before the followees deployment, run only the existing followers live tests:
+To run only the followers live tests:
 
 ```sh
 npm run test:integration --workspace tweeter-web -- --runTestsByPath test/integration/ServerFacade.test.ts test/integration/FollowersEndpoint.test.ts

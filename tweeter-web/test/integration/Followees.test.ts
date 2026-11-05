@@ -29,9 +29,12 @@ describe("Followees integration", () => {
     const expectedPageSizes = [10, 10, 1];
 
     for (let page = 0; page < expectedPageSizes.length; page++) {
-      const [users, hasMore] = await serverFacade.getMoreFollowees(
-        new PagedUserItemRequest(token, "@allen", 10, lastItem === null ? null : lastItem.dto)
+      const request = new PagedUserItemRequest(
+        token, "@allen", 10, lastItem === null ? null : lastItem.dto
       );
+      const result: [User[], boolean] = await serverFacade.getMoreFollowees(request);
+      const users: User[] = result[0];
+      const hasMore: boolean = result[1];
       expect(users).toHaveLength(expectedPageSizes[page]);
       expect(hasMore).toBe(page < expectedPageSizes.length - 1);
       aliases.push(...users.map((user) => user.alias));

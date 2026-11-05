@@ -47,3 +47,8 @@
 - Tool: OpenAI Codex
 - Task: Refactor followers and followees Lambda handling into a shared abstract PagedUserLambda using the Template Method pattern, with subclasses selecting their service operation. Preserve AWS handler exports, add regression tests for service delegation and error propagation, and document the shared flow.
 - Review: `PagedUserLambda.ts` created to avoid code duplication - `GetFolloweesLambda.ts` and `GetFollowersLambda.ts` inherit and overwrite `loadPage()` method. All tests passing.
+
+## 2026-11-05: tweeter-web/test/integration/Followees.test.ts, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved followees deployment and shared-handler update, verify both deployed Lambdas, and run all live integration tests. Add explicit variable types in the followees pagination test for the project's Jest TypeScript compiler and update documentation with the successful deployment results.
+- Review: Browser check confirms that followees/list shows 10, 10, 1, ends with `hasMore == false` 
