@@ -67,3 +67,8 @@
 - Tool: OpenAI Codex
 - Task: Prepare followee count through its Lambda, SAM endpoint, client facade/service, sample request, and integration tests. Share count handling with the Template Method pattern, expand and rename count tests to cover both operations, and document the pending deployment.
 - Review: followee count implemented through lambda, SAM, etc. `ServerFacade.ts` deduplicates code by creating a `getCount()` method. ServerFacade looks really good and does the facade job very well.
+
+## 2026-11-05: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved followee-count deployment and verify the direct Lambda response, public route availability, HTTP success/error responses, and all 24 live integration tests. Update the deployment documentation and overall milestone checklist without changing application code.
+- Review: Browser check shows everything working as expected. followees/count shows correct number of followees, the right status message, and is persistent when I follow or unfollow someone.
