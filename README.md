@@ -25,10 +25,11 @@ Rebuild either module of the project (tweeter-shared or tweeter-web) by running 
 
 Run the project by running 'npm start' from within the 'tweeter-web' folder.
 
-## Followers and Followees Backend with AWS SAM
+## Follow Backend with AWS SAM
 
 The root `template.yaml` describes a Lambda for each follow list and a REST API
-with `POST /followers/list` and `POST /followees/list`. Each handler receives the JSON request directly through a
+with `POST /followers/list`, `POST /followees/list`, and `POST /followers/count`.
+Each handler receives the JSON request directly through a
 non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
 starting with `[Bad Request]`, and 500 for other Lambda errors. CORS is configured
 for preflight requests, Lambda responses, and API Gateway errors.
@@ -46,9 +47,23 @@ service calls, reconstructed User instances, pagination, validation errors, and
 CORS. Both deployed Lambdas were also invoked directly and returned the expected
 first page. For `@allen`, each list returns pages of 10, 10, and 1 dummy users.
 
-Both handlers use
+The list handlers use
 `validatePagedUserItemRequest` to enforce the same paginated-user request
 contract. `get-followers.json` and `get-followees.json` contain sample requests.
+
+The follower-count implementation is prepared locally and awaits deployment.
+`UserAliasRequest` contains the token and user alias, and `CountResponse` contains
+the success flag, message, and count. `PagedUserItemRequest` extends
+`UserAliasRequest` with pagination fields, and its validator reuses the common
+token-and-alias checks. The JSON structure of existing list requests is unchanged.
+
+`GetFollowerCountLambda` validates the request, calls the server's
+`getFollowerCount`, and returns a `CountResponse`. The client service calls the
+facade's `getFollowerCount`, which accepts a nonnegative integer response.
+FakeData currently generates a random count from 1 to 10 on each call, so tests
+check that range instead of comparing separate requests for equality. Zero is
+also a valid count in the response contract and is covered by offline tests.
+`tweeter-server/events/get-follower-count.json` contains a sample count request.
 
 `PagedUserLambda` uses the Template Method pattern: its `handle` method validates
 the request, reconstructs the pagination cursor, calls `loadPage`, and constructs
@@ -82,7 +97,8 @@ copying the entire repository and its dependencies into a temporary source tree.
 The Makefile compiles shared code before server code, then uses esbuild to bundle
 each handler, shared code, and runtime dependencies into
 `.aws-sam/build/GetFollowersFunction/GetFollowersLambda.js` and
-`.aws-sam/build/GetFolloweesFunction/GetFolloweesLambda.js`. Each package does not
+`.aws-sam/build/GetFolloweesFunction/GetFolloweesLambda.js`, with the count handler
+at `.aws-sam/build/GetFollowerCountFunction/GetFollowerCountLambda.js`. Each package does not
 depend on workspace symlinks or a separate Lambda layer. TypeScript compilation
 checks types before bundling. Generated files are ignored by Git.
 
@@ -165,15 +181,21 @@ from the automated Node integration tests.
 Repeat this check in **Followees**, filtering Network
 for `followees/list`. The FakeData implementation returns the same dummy pages.
 
+After deploying follower count, filter Network for `followers/count` while
+opening or refreshing a profile. The request should contain `token` and
+`userAlias`; the response should contain `success: true` and an integer `count`.
+Check the profile's follower count against that response. Refreshing can change
+the count because FakeData generates a new random value.
+
 ## Running Tests
 
-Run the offline component, presenter, and Lambda handler tests from the repository root:
+Run the offline component, presenter, facade-validation, and Lambda handler tests from the repository root:
 
 ```sh
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-Run the live integration tests separately:
+After deploying the count endpoint, run all live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -186,10 +208,10 @@ preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
 
-To run only the followers live tests:
+While count is awaiting deployment, run the already deployed list features:
 
 ```sh
-npm run test:integration --workspace tweeter-web -- --runTestsByPath test/integration/ServerFacade.test.ts test/integration/FollowersEndpoint.test.ts
+npm run test:integration --workspace tweeter-web -- --runTestsByPath test/integration/ServerFacade.test.ts test/integration/FollowersEndpoint.test.ts test/integration/Followees.test.ts
 ```
 
 `jest.integration.config.cjs` reuses the existing TypeScript transforms but runs
@@ -210,5 +232,7 @@ It also checks the client `FollowService` path with domain objects as inputs.
 `Followees.test.ts` adds followees facade/service pagination, validation errors,
 and preflight checks. `test/server/FollowLambdas.test.ts` tests both handlers and
 the shared request validation locally, without AWS or HTTP calls.
-The assignment's register, count, and client StatusService story integration
-tests will be added as those features are implemented.
+`FollowerCount.test.ts` adds the required facade count integration test, plus
+client service, validation-error, and preflight checks. Its live execution awaits
+the count deployment. The assignment's register and client StatusService story
+integration tests will be added as those features are implemented.

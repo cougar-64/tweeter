@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 // view = DUMB! Delegate everything to the presenter
 
-import {AuthToken, FakeData, PagedUserItemRequest, User} from "tweeter-shared";
+import {AuthToken, FakeData, PagedUserItemRequest, User, UserAliasRequest} from "tweeter-shared";
 import {Service} from "./Service";
 import {ServerFacade} from "../net/ServerFacade";
 
@@ -59,8 +59,7 @@ export class FollowService implements Service {
         authToken: AuthToken,
         user: User,
     ): Promise<number> {
-        // TODO: Replace with the result of calling server
-        return FakeData.instance.getFollowerCount(user.alias);
+        return this.serverFacade.getFollowerCount(new UserAliasRequest(authToken.token, user.alias));
     };
 
     public async follow(

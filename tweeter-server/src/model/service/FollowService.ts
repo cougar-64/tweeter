@@ -2,6 +2,10 @@
 import { FakeData, User } from "tweeter-shared";
 
 export class FollowService {
+  public async getFollowerCount(_token: string, userAlias: string): Promise<number> {
+    return FakeData.instance.getFollowerCount(userAlias);
+  }
+
   public async loadMoreFollowees(
     // Milestone 3 uses dummy data; token verification comes in a later milestone.
     _token: string,

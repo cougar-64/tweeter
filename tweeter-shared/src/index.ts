@@ -6,8 +6,10 @@ export { User } from "./model/domain/User";
 export { AuthToken } from "./model/domain/AuthToken";
 export type { UserDto } from "./model/dto/UserDto";
 export { TweeterRequest } from "./model/net/request/TweeterRequest";
+export { UserAliasRequest } from "./model/net/request/UserAliasRequest";
 export { PagedUserItemRequest } from "./model/net/request/PagedUserItemRequest";
 export { TweeterResponse } from "./model/net/response/TweeterResponse";
+export { CountResponse } from "./model/net/response/CountResponse";
 export { PagedUserItemResponse } from "./model/net/response/PagedUserItemResponse";
 
 // All classes that should be avaialble to other modules need to exported here. export * does not work when 

@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 // validates JSON responses and reconstructs User objects.
 import { User } from "tweeter-shared";
-import type { PagedUserItemRequest, PagedUserItemResponse, UserDto } from "tweeter-shared";
+import type { CountResponse, PagedUserItemRequest, PagedUserItemResponse, UserAliasRequest, UserDto } from "tweeter-shared";
 import { ClientCommunicator } from "./ClientCommunicator";
 
 export class ServerFacade {
@@ -19,6 +19,19 @@ export class ServerFacade {
 
   public async getMoreFollowees(request: PagedUserItemRequest): Promise<[User[], boolean]> {
     return this.getPagedUsers(request, "/followees/list", "followees");
+  }
+
+  public async getFollowerCount(request: UserAliasRequest): Promise<number> {
+    const response = await this.clientCommunicator.doPost<UserAliasRequest, CountResponse>(
+      request, "/followers/count"
+    );
+    if (!response.success) {
+      throw new Error(response.message ?? "Failed to load follower count.");
+    }
+    if (!Number.isInteger(response.count) || response.count < 0) {
+      throw new Error("Invalid follower count response.");
+    }
+    return response.count;
   }
 
   private async getPagedUsers(
