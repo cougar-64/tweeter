@@ -57,3 +57,8 @@
 - Tool: OpenAI Codex
 - Task: Prepare follower count through shared request/response classes, server validation and Lambda, SAM configuration, and the client facade/service. Reuse token-and-alias fields and validation for paginated requests, add offline and live integration tests, and document the pending deployment and browser check.
 - Review: countResponse.ts and additional lambda functions created. Not all tests passing but is consistent with the endpoints that are not yet deployed. Will deploy after this commit.
+
+## 2026-11-05: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved follower-count change set, verify the deployed Lambda and HTTP responses, and run all 20 live integration tests. Update the documented deployment status and overall Milestone 3 checklist without changing application code.
+- Review: Browser check shows followers/count reports the correct number of followers as well as status messages including when a user followers another user. All tests passed

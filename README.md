@@ -27,7 +27,7 @@ Run the project by running 'npm start' from within the 'tweeter-web' folder.
 
 ## Follow Backend with AWS SAM
 
-The root `template.yaml` describes a Lambda for each follow list and a REST API
+The root `template.yaml` describes follow-list and follower-count Lambdas and a REST API
 with `POST /followers/list`, `POST /followees/list`, and `POST /followers/count`.
 Each handler receives the JSON request directly through a
 non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
@@ -41,17 +41,18 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-Both `POST /followers/list` and `POST /followees/list` are deployed in this stack.
-On 2026-11-05, all 16 live integration tests passed, covering facade and client
+All three routes are deployed in this stack.
+On 2026-11-05, all 20 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
-CORS. Both deployed Lambdas were also invoked directly and returned the expected
-first page. For `@allen`, each list returns pages of 10, 10, and 1 dummy users.
+CORS. The list Lambdas returned the expected first page when invoked directly,
+and the count Lambda returned a valid FakeData count. For `@allen`, each list
+returns pages of 10, 10, and 1 dummy users.
 
 The list handlers use
 `validatePagedUserItemRequest` to enforce the same paginated-user request
 contract. `get-followers.json` and `get-followees.json` contain sample requests.
 
-The follower-count implementation is prepared locally and awaits deployment.
+Follower count is deployed at `POST /followers/count` and verified by live tests.
 `UserAliasRequest` contains the token and user alias, and `CountResponse` contains
 the success flag, message, and count. `PagedUserItemRequest` extends
 `UserAliasRequest` with pagination fields, and its validator reuses the common
@@ -181,7 +182,7 @@ from the automated Node integration tests.
 Repeat this check in **Followees**, filtering Network
 for `followees/list`. The FakeData implementation returns the same dummy pages.
 
-After deploying follower count, filter Network for `followers/count` while
+For the follower-count browser check, filter Network for `followers/count` while
 opening or refreshing a profile. The request should contain `token` and
 `userAlias`; the response should contain `success: true` and an integer `count`.
 Check the profile's follower count against that response. Refreshing can change
@@ -195,7 +196,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-After deploying the count endpoint, run all live integration tests separately:
+Run all live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -208,7 +209,7 @@ preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
 
-While count is awaiting deployment, run the already deployed list features:
+To run only the list-feature integration tests:
 
 ```sh
 npm run test:integration --workspace tweeter-web -- --runTestsByPath test/integration/ServerFacade.test.ts test/integration/FollowersEndpoint.test.ts test/integration/Followees.test.ts
@@ -233,6 +234,22 @@ It also checks the client `FollowService` path with domain objects as inputs.
 and preflight checks. `test/server/FollowLambdas.test.ts` tests both handlers and
 the shared request validation locally, without AWS or HTTP calls.
 `FollowerCount.test.ts` adds the required facade count integration test, plus
-client service, validation-error, and preflight checks. Its live execution awaits
-the count deployment. The assignment's register and client StatusService story
+client service, validation-error, and preflight checks. All four count tests pass
+against AWS. The assignment's register and client StatusService story
 integration tests will be added as those features are implemented.
+
+## Milestone 3 Progress (2026-11-05)
+
+| Plan item | Status |
+| --- | --- |
+| Server module with shared dependency | Complete |
+| Move all service logic to the server | Partial: followers, followees, and follower count implemented |
+| Shared request/response contracts | User pages and counts implemented; other feature contracts pending |
+| First complete feature through all layers | Followers complete, including browser verification |
+| Repeat for all 14 features | 3 implemented, deployed, and verified with live tests; follower-count browser check pending |
+| Required Jest integration tests | Followers and follower count pass; register and StatusService story tests pending |
+| Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
+
+The remaining 11 features are followee count, following status, follow, unfollow,
+get user, login, register, logout, feed, story, and post status. The offline suite
+has 56 passing tests; the deployed integration suite has 20 passing tests.
