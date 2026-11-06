@@ -27,9 +27,9 @@ Run the project by running 'npm start' from within the 'tweeter-web' folder.
 
 ## Follow Backend with AWS SAM
 
-The root `template.yaml` describes follow-list and count Lambdas and a REST API
+The root `template.yaml` describes follow-list, count, and following-status Lambdas and a REST API
 with `POST /followers/list`, `POST /followees/list`, `POST /followers/count`,
-and `POST /followees/count`.
+`POST /followees/count`, and `POST /follow/status`.
 Each handler receives the JSON request directly through a
 non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
 starting with `[Bad Request]`, and 500 for other Lambda errors. CORS is configured
@@ -42,7 +42,7 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-All four routes are deployed in this stack.
+The four list/count routes are deployed in this stack; following status is prepared locally.
 On 2026-11-05, all 24 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
@@ -85,6 +85,21 @@ class and implement `loadPage` by calling their respective service methods.
 Each Lambda file exports a `handler` function that delegates to its subclass's
 inherited `handle` method, matching the existing SAM handler configuration.
 
+Following status is prepared at `POST /follow/status` and awaits deployment.
+`FollowingStatusRequest` contains `token`, `followerAlias` (the current user), and
+`followeeAlias` (the viewed profile). `FollowingStatusResponse` contains
+`success`, `message`, and the boolean `isFollower`. A successful response with
+`isFollower: false` is valid and means the current user does not follow the
+viewed user.
+
+`validateTweeterRequest` checks the request object and nonempty token. Both
+`validateUserAliasRequest` and `validateFollowingStatusRequest` reuse it before
+checking their specific alias fields. This preserves the existing list/count
+request formats and error messages. `GetFollowingStatusLambda` delegates to the
+server service, which currently uses FakeData's randomized boolean. Aliases are
+passed in the correct direction for the eventual relationship lookup.
+`tweeter-server/events/get-following-status.json` contains a sample request.
+
 The default response template checks for Lambda's `errorMessage` field and uses
 `$context.responseOverride.status` to return HTTP 500 for unexpected errors.
 This avoids a broad error regex also selecting successful responses.
@@ -115,6 +130,8 @@ at `.aws-sam/build/GetFollowerCountFunction/GetFollowerCountLambda.js` and
 `.aws-sam/build/GetFolloweeCountFunction/GetFolloweeCountLambda.js`. Each package does not
 depend on workspace symlinks or a separate Lambda layer. TypeScript compilation
 checks types before bundling. Generated files are ignored by Git.
+The following-status artifact is
+`.aws-sam/build/GetFollowingStatusFunction/GetFollowingStatusLambda.js`.
 
 To invoke the built handler directly with Node, without Docker or AWS:
 
@@ -205,6 +222,14 @@ For the followee-count browser check, repeat the profile check while filtering N
 for `followees/count`. Compare the displayed followee count with the response's
 integer `count`. Both count features currently use random FakeData values.
 
+After deploying following status, open another user's profile, such as Amy's
+while logged in as Allen, and filter Network for `follow/status`. Check that
+`followerAlias` is `@allen` and `followeeAlias` is `@amy`. The response should be
+HTTP 200 with `success: true` and a boolean `isFollower`: true corresponds to
+the **Unfollow** button, and false corresponds to **Follow**. FakeData randomizes
+the relationship, so refreshing can change the result and button label; this
+does not represent a persisted relationship yet.
+
 ## Running Tests
 
 Run the offline component, presenter, facade-validation, and Lambda handler tests from the repository root:
@@ -213,7 +238,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-Run all 24 live integration tests separately:
+After deploying following status, run all 29 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -225,6 +250,12 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
+
+Until following status is deployed, run the 24 tests for the current endpoints:
+
+```sh
+npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns=FollowingStatus.test.ts
+```
 
 To run only the list-feature integration tests:
 
@@ -260,18 +291,25 @@ and client service method, since random FakeData counts alone cannot distinguish
 the two operations. The assignment's register and client StatusService story
 integration tests will be added as those features are implemented.
 
+`FollowingStatus.test.ts` in the integration directory adds five checks for the
+pending status deployment. The offline server and client following-status tests
+cover both true and false results, incorrect result types, alias direction,
+request validation, and error propagation. Live status tests accept either
+boolean because FakeData is random.
+
 ## Milestone 3 Progress (2026-11-05)
 
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Four deployed features; ten features remain |
-| Shared request/response contracts | User pages and counts implemented; other feature contracts pending |
+| Move all service logic to the server | Four deployed features; following status prepared |
+| Shared request/response contracts | User pages, counts, and following status implemented; auth and post contracts pending |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 4 implemented, deployed, and verified with live tests; followee-count browser check pending |
+| Repeat for all 14 features | 4 implemented, deployed, and verified; following status prepared as the fifth |
 | Required Jest integration tests | Followers and follower count pass; register and StatusService story tests pending |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
-The 10 remaining features are following status, follow, unfollow, get user,
-login, register, logout, feed, story, and post status. The offline suite has 74
-passing tests; the deployed integration suite has 24 passing tests.
+Following status is prepared for deployment. The other nine remaining features
+are follow, unfollow, get user, login, register, logout, feed, story, and post
+status. The offline suite has 98 passing tests; the deployed integration suite
+has 24 passing tests. Five following-status live tests await deployment.

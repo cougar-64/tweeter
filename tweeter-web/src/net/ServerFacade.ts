@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 // validates JSON responses and reconstructs User objects.
 import { User } from "tweeter-shared";
-import type { CountResponse, PagedUserItemRequest, PagedUserItemResponse, UserAliasRequest, UserDto } from "tweeter-shared";
+import type { CountResponse, FollowingStatusRequest, FollowingStatusResponse, PagedUserItemRequest, PagedUserItemResponse, UserAliasRequest, UserDto } from "tweeter-shared";
 import { ClientCommunicator } from "./ClientCommunicator";
 
 export class ServerFacade {
@@ -19,6 +19,19 @@ export class ServerFacade {
 
   public async getMoreFollowees(request: PagedUserItemRequest): Promise<[User[], boolean]> {
     return this.getPagedUsers(request, "/followees/list", "followees");
+  }
+
+  public async getIsFollowerStatus(request: FollowingStatusRequest): Promise<boolean> {
+    const response = await this.clientCommunicator.doPost<FollowingStatusRequest, FollowingStatusResponse>(
+      request, "/follow/status"
+    );
+    if (!response.success) {
+      throw new Error(response.message ?? "Failed to load following status.");
+    }
+    if (typeof response.isFollower !== "boolean") {
+      throw new Error("Invalid following status response.");
+    }
+    return response.isFollower;
   }
 
   public async getFollowerCount(request: UserAliasRequest): Promise<number> {

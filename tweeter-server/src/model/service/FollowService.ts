@@ -2,6 +2,15 @@
 import { FakeData, User } from "tweeter-shared";
 
 export class FollowService {
+  public async getIsFollowerStatus(
+    _token: string,
+    _followerAlias: string,
+    _followeeAlias: string
+  ): Promise<boolean> {
+    // FakeData randomizes this result; the aliases identify the future relationship lookup.
+    return FakeData.instance.isFollower();
+  }
+
   public async getFolloweeCount(_token: string, userAlias: string): Promise<number> {
     return FakeData.instance.getFolloweeCount(userAlias);
   }

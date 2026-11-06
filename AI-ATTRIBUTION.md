@@ -72,3 +72,8 @@
 - Tool: OpenAI Codex
 - Task: Execute the approved followee-count deployment and verify the direct Lambda response, public route availability, HTTP success/error responses, and all 24 live integration tests. Update the deployment documentation and overall milestone checklist without changing application code.
 - Review: Browser check shows everything working as expected. followees/count shows correct number of followees, the right status message, and is persistent when I follow or unfollow someone.
+
+## 2026-11-05: tweeter-shared/src/model/net/request/FollowingStatusRequest.ts (new file), tweeter-shared/src/model/net/response/FollowingStatusResponse.ts (new file), tweeter-shared/src/index.ts, tweeter-server/src/lambda/validation/validateTweeterRequest.ts (new file), tweeter-server/src/lambda/validation/validateUserAliasRequest.ts, tweeter-server/src/lambda/validation/validateFollowingStatusRequest.ts (new file), tweeter-server/src/lambda/follow/GetFollowingStatusLambda.ts (new file), tweeter-server/src/model/service/FollowService.ts, tweeter-server/events/get-following-status.json (new file), tweeter-web/src/net/ServerFacade.ts, tweeter-web/src/model.service/FollowService.ts, tweeter-web/test/server/FollowingStatusLambda.test.ts (new file), tweeter-web/test/net/FollowingStatus.test.ts (new file), tweeter-web/test/integration/FollowingStatus.test.ts (new file), template.yaml, Makefile, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare following status through shared request/response classes, validation, the server Lambda, SAM endpoint, and client facade/service. Extract shared token validation, test both boolean results and alias direction, and document the pending deployment and browser verification.
+- Review: TODO
