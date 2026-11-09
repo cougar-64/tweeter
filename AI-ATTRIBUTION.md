@@ -97,3 +97,8 @@
 - Tool: OpenAI Codex
 - Task: Prepare Unfollow through the client service/facade, server service, Lambda, and SAM endpoint, moving the placeholder operation to the server. Share Follow/Unfollow Lambda and facade handling, extend offline tests to cover both operations, add pending live tests, and update deployment documentation.
 - Review: Unfollowing logic added to all follow server files. All tests passing.
+
+## 2026-11-09: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved Unfollow AWS change set and verify the direct Lambda response, stable public success/error and preflight responses, and all 39 live integration tests. Update deployment documentation and milestone progress, leaving browser verification for review.
+- Review: Browser checks show 
