@@ -76,4 +76,9 @@
 ## 2026-11-05: tweeter-shared/src/model/net/request/FollowingStatusRequest.ts (new file), tweeter-shared/src/model/net/response/FollowingStatusResponse.ts (new file), tweeter-shared/src/index.ts, tweeter-server/src/lambda/validation/validateTweeterRequest.ts (new file), tweeter-server/src/lambda/validation/validateUserAliasRequest.ts, tweeter-server/src/lambda/validation/validateFollowingStatusRequest.ts (new file), tweeter-server/src/lambda/follow/GetFollowingStatusLambda.ts (new file), tweeter-server/src/model/service/FollowService.ts, tweeter-server/events/get-following-status.json (new file), tweeter-web/src/net/ServerFacade.ts, tweeter-web/src/model.service/FollowService.ts, tweeter-web/test/server/FollowingStatusLambda.test.ts (new file), tweeter-web/test/net/FollowingStatus.test.ts (new file), tweeter-web/test/integration/FollowingStatus.test.ts (new file), template.yaml, Makefile, README.md, AI-ATTRIBUTION.md
 - Tool: OpenAI Codex
 - Task: Prepare following status through shared request/response classes, validation, the server Lambda, SAM endpoint, and client facade/service. Extract shared token validation, test both boolean results and alias direction, and document the pending deployment and browser verification.
-- Review: TODO
+- Review: `FollowingStatusRequest/Response.ts` takes care of the request and success response.
+
+## 2026-11-09: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved following-status AWS change set and verify the direct Lambda response, public POST and OPTIONS routes, and all 29 live integration tests. Update the deployment documentation and milestone progress, leaving browser verification for review.
+- Review: Browser check correctly shows status information for follower status.
