@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 // validates JSON responses and reconstructs User objects.
 import { User } from "tweeter-shared";
-import type { CountResponse, FollowingStatusRequest, FollowingStatusResponse, PagedUserItemRequest, PagedUserItemResponse, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
+import type { CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, PagedUserItemRequest, PagedUserItemResponse, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
 import { ClientCommunicator } from "./ClientCommunicator";
 
 export class ServerFacade {
@@ -11,6 +11,22 @@ export class ServerFacade {
     serverUrl: string = "https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev"
   ) {
     this.clientCommunicator = new ClientCommunicator(serverUrl);
+  }
+
+  public async getUser(request: UserAliasRequest): Promise<User | null> {
+    const response = await this.clientCommunicator.doPost<UserAliasRequest, GetUserResponse>(
+      request, "/user/get"
+    );
+    if (!response.success) {
+      throw new Error(response.message ?? "Failed to get user.");
+    }
+    if (response.user === null) {
+      return null;
+    }
+    if (!this.isUserDto(response.user)) {
+      throw new Error("Invalid get user response.");
+    }
+    return User.fromDto(response.user);
   }
 
   public async getMoreFollowers(request: PagedUserItemRequest): Promise<[User[], boolean]> {

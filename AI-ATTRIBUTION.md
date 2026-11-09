@@ -101,4 +101,14 @@
 ## 2026-11-09: README.md, AI-ATTRIBUTION.md
 - Tool: OpenAI Codex
 - Task: Execute the approved Unfollow AWS change set and verify the direct Lambda response, stable public success/error and preflight responses, and all 39 live integration tests. Update deployment documentation and milestone progress, leaving browser verification for review.
-- Review: Browser checks show 
+- Review: Browser checks show lambda request and response is as-intended.
+
+## 2026-11-09: tweeter-shared/src/model/net/response/GetUserResponse.ts (new file), tweeter-shared/src/index.ts, tweeter-server/src/model/service/UserService.ts (new file), tweeter-server/src/lambda/user/GetUserLambda.ts (new file), tweeter-server/events/get-user.json (new file), tweeter-web/src/model.service/UserService.ts, tweeter-web/src/net/ServerFacade.ts, tweeter-web/test/server/GetUserLambda.test.ts (new file), tweeter-web/test/net/GetUser.test.ts (new file), tweeter-web/test/integration/GetUser.test.ts (new file), Makefile, template.yaml, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare Get User through a shared nullable user response, server service and Lambda, SAM route, and client service/facade. Preserve null for unknown aliases, validate and reconstruct user DTOs, add offline and pending live tests, and document deployment and browser verification.
+- Review: GetUser function implemented through ServerFacade.ts. 
+
+## 2026-11-09: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved Get User AWS change set and verify the direct Lambda profile, stable public lookup/null/validation and preflight responses, and all 45 live integration tests. Update deployment documentation and milestone progress, leaving manual browser verification and review to the user.
+- Review: Browser checks
