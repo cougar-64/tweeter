@@ -82,3 +82,13 @@
 - Tool: OpenAI Codex
 - Task: Execute the approved following-status AWS change set and verify the direct Lambda response, public POST and OPTIONS routes, and all 29 live integration tests. Update the deployment documentation and milestone progress, leaving browser verification for review.
 - Review: Browser check correctly shows status information for follower status.
+
+## 2026-11-09: tweeter-server/src/model/service/FollowService.ts, tweeter-server/src/lambda/follow/FollowLambda.ts (new file), tweeter-server/events/follow.json (new file), tweeter-web/src/net/ServerFacade.ts, tweeter-web/src/model.service/FollowService.ts, tweeter-web/test/server/FollowLambda.test.ts (new file), tweeter-web/test/net/Follow.test.ts (new file), tweeter-web/test/integration/Follow.test.ts (new file), Makefile, template.yaml, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare Follow through the client facade, shared request/response contracts, server service, Lambda, and SAM route. Move the placeholder operation to the server, add offline and pending integration tests, and document deployment and browser verification.
+- Review: FollowService allows a user to follow another user. The followLambda will be built and packaged and uploaded to AWS.
+
+## 2026-11-09: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved Follow AWS change set and verify the direct Lambda response, public POST and OPTIONS routes, and all 34 live integration tests after API propagation. Update deployment documentation and milestone progress, leaving the browser check for review.
+- Review: Browser check shows follow status POST with correct request and response.

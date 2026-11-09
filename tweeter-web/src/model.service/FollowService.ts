@@ -66,7 +66,7 @@ export class FollowService implements Service {
         authToken: AuthToken,
         userToFollow: User,
     ): Promise<void> {
-        await new Promise((f) => setTimeout(f, 2000));
+        await this.serverFacade.follow(new UserAliasRequest(authToken.token, userToFollow.alias));
     }
 
     public async unfollow(

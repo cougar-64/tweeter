@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Tweeter Milestone 3 follow lists, counts, and following status API.
+Description: Tweeter Milestone 3 follow lists, counts, following status, and follow API.
 
 Parameters:
   StageName:
@@ -68,6 +68,19 @@ Resources:
     Properties:
       CodeUri: .
       Handler: GetFollowingStatusLambda.handler
+      Runtime: nodejs24.x
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 10
+
+  FollowFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      CodeUri: .
+      Handler: FollowLambda.handler
       Runtime: nodejs24.x
       Architectures:
         - arm64
@@ -349,6 +362,64 @@ Resources:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
 
+          /follow:
+            post:
+              summary: Follow a user
+              description: Simulates following the supplied user alias using the authentication token. Does not persist a relationship in Milestone 3.
+              responses:
+                '200':
+                  description: A success flag and optional message after the simulated operation completes.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '400':
+                  description: The token or target user alias is missing or invalid.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '500':
+                  description: An unexpected server error occurred.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+              x-amazon-apigateway-integration:
+                type: aws
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FollowFunction.Arn}/invocations
+                passthroughBehavior: never
+                requestTemplates:
+                  application/json: '$input.json("$")'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        #set($result = $input.path('$'))
+                        #if($result.containsKey("errorMessage"))
+                        #set($context.responseOverride.status = 500)
+                        {"errorMessage": "An unexpected server error occurred."}
+                        #else
+                        $input.json("$")
+                        #end
+                  '(?s)^\[Bad Request\].*':
+                    statusCode: '400'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+
+  FollowInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref FollowFunction
+      Principal: apigateway.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/follow
+
   GetFollowersInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -395,6 +466,9 @@ Resources:
       SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/follow/status
 
 Outputs:
+  FollowFunctionName:
+    Description: Follow Lambda function name for direct invocation and debugging.
+    Value: !Ref FollowFunction
   ApiBaseUrl:
     Description: Base URL for the client communicator, including the deployed stage.
     Value: !Sub https://${TweeterApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${StageName}

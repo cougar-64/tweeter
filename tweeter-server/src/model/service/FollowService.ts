@@ -2,6 +2,11 @@
 import { FakeData, User } from "tweeter-shared";
 
 export class FollowService {
+  public async follow(_token: string, _userAlias: string): Promise<void> {
+    // Milestone 3 simulates the operation; token lookup and persistence come later.
+    await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+  }
+
   public async getIsFollowerStatus(
     _token: string,
     _followerAlias: string,
