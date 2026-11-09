@@ -27,9 +27,9 @@ Run the project by running 'npm start' from within the 'tweeter-web' folder.
 
 ## Follow Backend with AWS SAM
 
-The root `template.yaml` describes follow-list, count, following-status, and follow Lambdas and a REST API
+The root `template.yaml` describes follow-list, count, following-status, follow, and unfollow Lambdas and a REST API
 with `POST /followers/list`, `POST /followees/list`, `POST /followers/count`,
-`POST /followees/count`, `POST /follow/status`, and `POST /follow`.
+`POST /followees/count`, `POST /follow/status`, `POST /follow`, and `POST /unfollow`.
 Each handler receives the JSON request directly through a
 non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
 starting with `[Bad Request]`, and 500 for other Lambda errors. CORS is configured
@@ -42,7 +42,7 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-All six routes are deployed in this stack.
+Six routes are deployed in this stack; `POST /unfollow` is prepared locally.
 On 2026-11-09, all 34 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
@@ -107,12 +107,23 @@ authentication token and target user's `userAlias`, and `TweeterResponse` with
 `success` and `message`. No new DTO or response subclass is needed because the
 operation returns no additional data. The token represents the acting session;
 it is passed through but is not verified in this milestone.
-`FollowLambda` reuses `validateUserAliasRequest` and awaits the server's `follow`
-method before returning success. The two-second placeholder delay has moved
+`FollowLambda` extends `UserActionLambda`, whose `handle` method reuses
+`validateUserAliasRequest`, awaits `performAction`, and returns success. The
+Follow subclass implements `performAction` by calling the server's `follow`
+method. The two-second placeholder delay has moved
 from the client to the server; no relationship is persisted. The presenter
 continues to reload counts afterward, and the component changes the button to
-Unfollow on success. Unfollow still uses a client placeholder.
+Unfollow on success.
 The sample invocation payload is `tweeter-server/events/follow.json`.
+
+Unfollow is prepared at `POST /unfollow`. It uses the same `UserAliasRequest`
+and `TweeterResponse` contract as Follow. `UnfollowLambda` extends
+`UserActionLambda` and calls the server's `unfollow` method. Its two-second
+placeholder operation now runs on the server, with no relationship persistence.
+The client facade's `performUserAction` helper shares POST and failure handling
+between Follow and Unfollow, while each public method chooses its own endpoint.
+The existing presenter reloads counts and the component changes the button to
+Follow on success. The sample payload is `tweeter-server/events/unfollow.json`.
 
 The default response template checks for Lambda's `errorMessage` field and uses
 `$context.responseOverride.status` to return HTTP 500 for unexpected errors.
@@ -147,6 +158,7 @@ checks types before bundling. Generated files are ignored by Git.
 The following-status artifact is
 `.aws-sam/build/GetFollowingStatusFunction/GetFollowingStatusLambda.js`.
 The follow artifact is `.aws-sam/build/FollowFunction/FollowLambda.js`.
+The unfollow artifact is `.aws-sam/build/UnfollowFunction/UnfollowLambda.js`.
 
 To invoke the built handler directly with Node, without Docker or AWS:
 
@@ -253,6 +265,13 @@ and the target `userAlias`, then return HTTP 200 with `success: true` and
 **Unfollow**. Counts and status remain dummy values; they are not evidence of a
 stored relationship.
 
+After deploying Unfollow, click **Unfollow** on another user's profile. You can
+click Follow first if needed to show that button. Filter Network for `unfollow`
+and confirm a POST to `/dev/unfollow`, with the target `userAlias` and token.
+Expect HTTP 200 with `success: true` and `message: null`, subsequent count
+requests, and a button change back to **Follow**. Refresh still uses randomized
+FakeData for following status.
+
 ## Running Tests
 
 Run the offline component, presenter, facade-validation, and Lambda handler tests from the repository root:
@@ -261,7 +280,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-Run all 34 live integration tests separately:
+After deploying Unfollow, run all 39 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -273,6 +292,12 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
+
+Until Unfollow is deployed, run the 34 tests for the existing endpoints:
+
+```sh
+npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/Unfollow.test.ts$'
+```
 
 To run only the list-feature integration tests:
 
@@ -320,6 +345,12 @@ preflight CORS. Offline Follow tests verify that the Lambda waits for the
 server operation, passes the correct target, rejects malformed requests before
 calling the service, and propagates failures through the client layers.
 
+`Unfollow.test.ts` adds five integration checks awaiting deployment: facade and
+client service success, invalid alias/token errors, and preflight CORS. The
+existing offline `FollowLambda.test.ts` and `test/net/Follow.test.ts` now run
+shared cases for both operations. Handler tests also ensure that each operation
+calls its own server service method and never the opposite one.
+
 During Follow deployment, the first live test run received intermittent API
 Gateway `Missing Authentication Token` responses even after one successful
 request. Once success and validation responses were stable for three consecutive
@@ -330,14 +361,14 @@ rounds, all 34 live tests passed without code changes.
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Six deployed features; eight features remain |
+| Move all service logic to the server | Six deployed features; Unfollow prepared as the seventh |
 | Shared request/response contracts | User pages, counts, and following status implemented; auth and post contracts pending |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 6 implemented, deployed, and verified by live tests; Follow browser check pending |
+| Repeat for all 14 features | 6 implemented, deployed, and browser verified; Unfollow prepared as the seventh |
 | Required Jest integration tests | Followers and follower count pass; register and StatusService story tests pending |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
-Following status is deployed and browser verified. Follow is deployed and passes
-all five live checks; browser verification is pending. The eight remaining features are unfollow, get user, login, register,
-logout, feed, story, and post status. The offline suite has 114 passing tests;
-the deployed integration suite has 34 passing tests.
+Follow is deployed and browser verified. Unfollow is prepared locally; the other
+seven remaining features are get user, login, register, logout, feed, story,
+and post status. The offline suite has 130 passing tests; the deployed integration
+suite has 34 passing tests. Five Unfollow live tests await deployment.

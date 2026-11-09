@@ -22,11 +22,23 @@ export class ServerFacade {
   }
 
   public async follow(request: UserAliasRequest): Promise<void> {
+    return this.performUserAction(request, "/follow", "follow");
+  }
+
+  public async unfollow(request: UserAliasRequest): Promise<void> {
+    return this.performUserAction(request, "/unfollow", "unfollow");
+  }
+
+  private async performUserAction(
+    request: UserAliasRequest,
+    endpoint: string,
+    action: string
+  ): Promise<void> {
     const response = await this.clientCommunicator.doPost<UserAliasRequest, TweeterResponse>(
-      request, "/follow"
+      request, endpoint
     );
     if (!response.success) {
-      throw new Error(response.message ?? "Failed to follow user.");
+      throw new Error(response.message ?? `Failed to ${action} user.`);
     }
   }
 

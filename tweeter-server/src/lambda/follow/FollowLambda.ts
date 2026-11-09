@@ -1,11 +1,12 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { TweeterResponse } from "tweeter-shared";
+import type { UserAliasRequest } from "tweeter-shared";
 import { FollowService } from "../../model/service/FollowService";
-import { validateUserAliasRequest } from "../validation/validateUserAliasRequest";
+import { UserActionLambda } from "../UserActionLambda";
 
-export async function handler(request: unknown): Promise<TweeterResponse> {
-  validateUserAliasRequest(request);
-
-  await new FollowService().follow(request.token, request.userAlias);
-  return new TweeterResponse(true);
+export class FollowLambda extends UserActionLambda {
+  protected performAction(request: UserAliasRequest): Promise<void> {
+    return new FollowService().follow(request.token, request.userAlias);
+  }
 }
+
+export const handler = (request: unknown) => new FollowLambda().handle(request);

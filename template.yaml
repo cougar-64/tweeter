@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Tweeter Milestone 3 follow lists, counts, following status, and follow API.
+Description: Tweeter Milestone 3 follow lists, counts, following status, follow, and unfollow API.
 
 Parameters:
   StageName:
@@ -81,6 +81,19 @@ Resources:
     Properties:
       CodeUri: .
       Handler: FollowLambda.handler
+      Runtime: nodejs24.x
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 10
+
+  UnfollowFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      CodeUri: .
+      Handler: UnfollowLambda.handler
       Runtime: nodejs24.x
       Architectures:
         - arm64
@@ -411,6 +424,64 @@ Resources:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
 
+          /unfollow:
+            post:
+              summary: Unfollow a user
+              description: Simulates unfollowing the supplied user alias using the authentication token. Does not persist a relationship in Milestone 3.
+              responses:
+                '200':
+                  description: A success flag and optional message after the simulated operation completes.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '400':
+                  description: The token or target user alias is missing or invalid.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '500':
+                  description: An unexpected server error occurred.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+              x-amazon-apigateway-integration:
+                type: aws
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UnfollowFunction.Arn}/invocations
+                passthroughBehavior: never
+                requestTemplates:
+                  application/json: '$input.json("$")'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        #set($result = $input.path('$'))
+                        #if($result.containsKey("errorMessage"))
+                        #set($context.responseOverride.status = 500)
+                        {"errorMessage": "An unexpected server error occurred."}
+                        #else
+                        $input.json("$")
+                        #end
+                  '(?s)^\[Bad Request\].*':
+                    statusCode: '400'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+
+  UnfollowInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref UnfollowFunction
+      Principal: apigateway.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/unfollow
+
   FollowInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -466,6 +537,9 @@ Resources:
       SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/follow/status
 
 Outputs:
+  UnfollowFunctionName:
+    Description: Unfollow Lambda function name for direct invocation and debugging.
+    Value: !Ref UnfollowFunction
   FollowFunctionName:
     Description: Follow Lambda function name for direct invocation and debugging.
     Value: !Ref FollowFunction
