@@ -147,3 +147,8 @@
 - Tool: OpenAI Codex
 - Task: Prepare Story through status DTOs and paged contracts, server service/Lambda, SAM route, and client facade/service while preserving the shared dummy status list. Reconstruct status authors and clickable segments, validate cursors and responses, add offline and required StatusService integration tests, and document pending deployment and milestone progress.
 - Review: Story implemented through serverFacade and statusService. Tests written as well, lambda ready for AWS upload.
+
+## 2026-11-10: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved Story AWS change set and verify the direct Lambda first page, stable public success/validation and preflight responses, and all 69 live integration tests. Confirm complete 44-status pagination and the required client StatusService story test, and update deployment documentation and milestone progress while leaving browser verification to the user.
+- Review: Browser status shows status response 200 and the correct amount of stories displayed.

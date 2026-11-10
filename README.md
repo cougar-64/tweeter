@@ -44,8 +44,8 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-Eleven routes are deployed in this stack; `POST /story/list` is prepared locally.
-On 2026-11-10, all 62 live integration tests passed, covering facade and client
+All twelve routes are deployed in this stack.
+On 2026-11-10, all 69 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
 and the count Lambdas returned valid FakeData counts. The following-status Lambda
@@ -64,6 +64,10 @@ OPTIONS/CORS passed three consecutive rounds before the full 58-test suite.
 The Logout Lambda returned `success: true` and `message: null` on direct
 invocation. Public Logout success, token-validation errors, and OPTIONS/CORS
 passed three consecutive rounds before all 62 live tests passed.
+The Story Lambda returned ten status DTOs and the expected first post on direct
+invocation. Public first-page, validation-error, and OPTIONS/CORS checks passed
+three consecutive rounds. The full suite verified all 44 statuses and the final
+empty page, including the required client StatusService story test.
 
 The list handlers use
 `validatePagedUserItemRequest` to enforce the same paginated-user request
@@ -202,7 +206,7 @@ navigating to Login, and reports errors when the call fails. All methods in the
 client UserService now call the server API. The sample request is
 `tweeter-server/events/logout.json`.
 
-Story is prepared at `POST /story/list`. `PagedStatusItemRequest` contains the
+Story is deployed at `POST /story/list`. `PagedStatusItemRequest` contains the
 token, requested user alias, page size, and a nullable `StatusDto` cursor.
 `PagedStatusItemResponse` contains status DTOs and `hasMore`. Each `StatusDto`
 contains post text, a nested `UserDto`, and a timestamp. The shared `isStatusDto`
@@ -400,7 +404,7 @@ then clear the signed-in user and navigate to Login. Preserve log keeps the
 request visible through navigation. This verifies the client logout sequence;
 the dummy server does not revoke tokens yet.
 
-After deploying Story, sign in and open **Story**. Filter Network for
+For the Story browser check, sign in and open **Story**. Filter Network for
 `story/list` and confirm POST requests include the token, alias, page size, and
 `lastItem: null` initially. The response should contain ten status DTOs and
 `hasMore: true`; the first post is Allen's `Post 0 0`, mentioning Amy and BYU URLs.
@@ -418,7 +422,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-After deploying Story, run all 69 live integration tests separately:
+Run all 69 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -430,12 +434,6 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
-
-Until Story is deployed, run the 62 tests for existing endpoints:
-
-```sh
-npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/Story.test.ts$'
-```
 
 To run only the list-feature integration tests:
 
@@ -469,7 +467,7 @@ against AWS. `test/server/FollowCountLambdas.test.ts` (renamed from
 The facade count tests also verify that each operation selects the correct URL
 and client service method, since random FakeData counts alone cannot distinguish
 the two operations. The assignment's Register integration test now passes;
-the client StatusService story test is written and awaits Story deployment.
+the client StatusService story test also passes against the deployed API.
 
 `FollowingStatus.test.ts` in the integration directory provides five passing checks
 against the deployed endpoint. The offline server and client following-status tests
@@ -519,7 +517,7 @@ completion, validation before service calls, and failure propagation. Existing
 LogoutPresenter tests verify user information is cleared and navigation occurs
 on success, and neither happens after a failed logout.
 
-`Story.test.ts` adds seven pending live tests, including the assignment-required
+`Story.test.ts` provides seven passing live tests, including the assignment-required
 client StatusService story integration test. It checks the exact first status,
 nested User/Status instances and clickable segments, all 44 unique statuses
 through facade pagination, the final empty page, invalid token/alias/page size/
@@ -538,17 +536,18 @@ rounds, all 34 live tests passed without code changes.
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Eleven deployed features; Story prepared as the twelfth |
+| Move all service logic to the server | Twelve deployed features; Feed and Post Status remain |
 | Shared request/response contracts | Status DTO and paging contracts added; Post Status request pending |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 11 deployed and verified by live tests; Story prepared as the twelfth; Unfollow browser check pending |
-| Required Jest integration tests | Required facade tests pass; StatusService story test written and awaiting deployment |
+| Repeat for all 14 features | 12 deployed and verified by live tests; Story and Unfollow browser checks pending |
+| Required Jest integration tests | Register, Followers, count facade tests and StatusService story test all pass against AWS |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and browser
 verified. Login, Register, and Logout are deployed and browser verified. Story is
-prepared locally; the other two remaining features are Feed and Post Status.
-The offline suite has 275 passing tests; the deployed integration suite has 62
-passing tests. Seven Story live tests await deployment. Documentation, API export,
+deployed and passes all seven live checks; browser verification is pending.
+The two remaining features are Feed and Post Status. The offline suite has 275
+passing tests; the deployed integration suite has 69 passing tests. All required
+Milestone 3 integration tests now pass. Documentation, API export,
 and passoff work remain after the features are completed.
