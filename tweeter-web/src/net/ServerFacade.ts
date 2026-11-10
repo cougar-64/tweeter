@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 // validates JSON responses and reconstructs User objects.
 import { AuthToken, User } from "tweeter-shared";
-import type { AuthenticationResponse, AuthTokenDto, CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, LoginRequest, PagedUserItemRequest, PagedUserItemResponse, RegisterRequest, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
+import type { AuthenticatedRequest, AuthenticationResponse, AuthTokenDto, CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, LoginRequest, PagedUserItemRequest, PagedUserItemResponse, RegisterRequest, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
 import { ClientCommunicator } from "./ClientCommunicator";
 
 export class ServerFacade {
@@ -70,12 +70,16 @@ export class ServerFacade {
     return this.performUserAction(request, "/unfollow", "unfollow");
   }
 
+  public async logout(request: AuthenticatedRequest): Promise<void> {
+    return this.performUserAction(request, "/user/logout", "logout");
+  }
+
   private async performUserAction(
-    request: UserAliasRequest,
+    request: AuthenticatedRequest,
     endpoint: string,
     action: string
   ): Promise<void> {
-    const response = await this.clientCommunicator.doPost<UserAliasRequest, TweeterResponse>(
+    const response = await this.clientCommunicator.doPost<AuthenticatedRequest, TweeterResponse>(
       request, endpoint
     );
     if (!response.success) {

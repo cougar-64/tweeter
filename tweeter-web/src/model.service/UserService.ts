@@ -1,5 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import {AuthToken, LoginRequest, RegisterRequest, User, UserAliasRequest} from "tweeter-shared";
+import {AuthenticatedRequest, AuthToken, LoginRequest, RegisterRequest, User, UserAliasRequest} from "tweeter-shared";
 import { Buffer } from "buffer";
 import {Service} from "./Service";
 import {ServerFacade} from "../net/ServerFacade";
@@ -38,6 +38,6 @@ export class UserService implements Service {
     };
 
     public logout(authToken: AuthToken): Promise<void> {
-        return new Promise((res) => setTimeout(res, 1000));
+        return this.serverFacade.logout(new AuthenticatedRequest(authToken.token));
     }
 }

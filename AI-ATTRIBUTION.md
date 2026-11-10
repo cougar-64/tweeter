@@ -132,3 +132,8 @@
 - Tool: OpenAI Codex
 - Task: Prepare, inspect, and execute the approved Register AWS change set after renewing CLI login. Verify the direct Lambda user/token DTOs, stable public success/validation and preflight responses, and all 58 live integration tests; update deployment documentation and milestone progress while leaving manual review to the user.
 - Review: Browser check shows register returns 200 status and Allen Anderson's profile (which is the default profile right now).
+
+## 2026-11-10: tweeter-server/src/model/service/UserService.ts, tweeter-server/src/lambda/user/LogoutLambda.ts (new file), tweeter-server/events/logout.json (new file), tweeter-web/src/model.service/UserService.ts, tweeter-web/src/net/ServerFacade.ts, tweeter-web/test/server/LogoutLambda.test.ts (new file), tweeter-web/test/net/Logout.test.ts (new file), tweeter-web/test/integration/Logout.test.ts (new file), Makefile, template.yaml, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare Logout through the client service/facade, server service and Lambda, and SAM endpoint using the existing token-only request and base response. Move the simulated operation to the server, test validation/completion/failure behavior and the pending live endpoint, and update deployment documentation and progress.
+- Review: Logout implemented through ServerFacade. UserService.ts calls ServerFacade.ts logout method which uses AWS to tell the UserService.ts in the server to logout the user. LogoutLambda also created for AWS deployment. 

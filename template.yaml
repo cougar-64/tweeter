@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Tweeter Milestone 3 follow features, user lookup, login, and registration API.
+Description: Tweeter Milestone 3 follow features and user management API.
 
 Parameters:
   StageName:
@@ -133,6 +133,19 @@ Resources:
     Properties:
       CodeUri: .
       Handler: RegisterLambda.handler
+      Runtime: nodejs24.x
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 10
+
+  LogoutFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      CodeUri: .
+      Handler: LogoutLambda.handler
       Runtime: nodejs24.x
       Architectures:
         - arm64
@@ -659,6 +672,64 @@ Resources:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
 
+          /user/logout:
+            post:
+              summary: Log out a user
+              description: Validates the supplied token and simulates logout. Does not invalidate a stored session in Milestone 3.
+              responses:
+                '200':
+                  description: A success flag and optional message after the simulated logout completes.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '400':
+                  description: The token is missing or invalid.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '500':
+                  description: An unexpected server error occurred.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+              x-amazon-apigateway-integration:
+                type: aws
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LogoutFunction.Arn}/invocations
+                passthroughBehavior: never
+                requestTemplates:
+                  application/json: '$input.json("$")'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        #set($result = $input.path('$'))
+                        #if($result.containsKey("errorMessage"))
+                        #set($context.responseOverride.status = 500)
+                        {"errorMessage": "An unexpected server error occurred."}
+                        #else
+                        $input.json("$")
+                        #end
+                  '(?s)^\[Bad Request\].*':
+                    statusCode: '400'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+
+  LogoutInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LogoutFunction
+      Principal: apigateway.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/user/logout
+
   RegisterInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -750,6 +821,9 @@ Resources:
       SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/follow/status
 
 Outputs:
+  LogoutFunctionName:
+    Description: Logout Lambda function name for direct invocation and debugging.
+    Value: !Ref LogoutFunction
   RegisterFunctionName:
     Description: Register Lambda function name for direct invocation and debugging.
     Value: !Ref RegisterFunction

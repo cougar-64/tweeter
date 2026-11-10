@@ -2,6 +2,11 @@
 import { AuthToken, FakeData, User } from "tweeter-shared";
 
 export class UserService {
+  public async logout(_token: string): Promise<void> {
+    // Milestone 3 simulates logout; session invalidation comes later.
+    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+  }
+
   public async register(
     _firstName: string,
     _lastName: string,
