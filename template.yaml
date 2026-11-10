@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Tweeter Milestone 3 follow features, user management, and story API.
+Description: Tweeter Milestone 3 follow features, user management, story, and feed API.
 
 Parameters:
   StageName:
@@ -159,6 +159,19 @@ Resources:
     Properties:
       CodeUri: .
       Handler: GetStoryLambda.handler
+      Runtime: nodejs24.x
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 10
+
+  GetFeedFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      CodeUri: .
+      Handler: GetFeedLambda.handler
       Runtime: nodejs24.x
       Architectures:
         - arm64
@@ -783,6 +796,64 @@ Resources:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
 
+          /feed/list:
+            post:
+              summary: Get a page of feed statuses
+              description: Returns a page from the shared dummy status list using the supplied page size and optional status cursor. Followee-based filtering comes with real storage.
+              responses:
+                '200':
+                  description: A page of status DTOs with nested user DTOs and a hasMore flag.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '400':
+                  description: The token, alias, page size, or last-item cursor is missing or invalid.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '500':
+                  description: An unexpected server error occurred.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+              x-amazon-apigateway-integration:
+                type: aws
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetFeedFunction.Arn}/invocations
+                passthroughBehavior: never
+                requestTemplates:
+                  application/json: '$input.json("$")'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        #set($result = $input.path('$'))
+                        #if($result.containsKey("errorMessage"))
+                        #set($context.responseOverride.status = 500)
+                        {"errorMessage": "An unexpected server error occurred."}
+                        #else
+                        $input.json("$")
+                        #end
+                  '(?s)^\[Bad Request\].*':
+                    statusCode: '400'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+
+  GetFeedInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetFeedFunction
+      Principal: apigateway.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/feed/list
+
   GetStoryInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -892,6 +963,9 @@ Resources:
       SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/follow/status
 
 Outputs:
+  GetFeedFunctionName:
+    Description: Feed Lambda function name for direct invocation and debugging.
+    Value: !Ref GetFeedFunction
   GetStoryFunctionName:
     Description: Story Lambda function name for direct invocation and debugging.
     Value: !Ref GetStoryFunction

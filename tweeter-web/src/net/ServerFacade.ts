@@ -55,14 +55,26 @@ export class ServerFacade {
   }
 
   public async getMoreStory(request: PagedStatusItemRequest): Promise<[Status[], boolean]> {
+    return this.getPagedStatuses(request, "/story/list", "story");
+  }
+
+  public async getMoreFeed(request: PagedStatusItemRequest): Promise<[Status[], boolean]> {
+    return this.getPagedStatuses(request, "/feed/list", "feed");
+  }
+
+  private async getPagedStatuses(
+    request: PagedStatusItemRequest,
+    endpoint: string,
+    itemDescription: string
+  ): Promise<[Status[], boolean]> {
     const response = await this.clientCommunicator.doPost<PagedStatusItemRequest, PagedStatusItemResponse>(
-      request, "/story/list"
+      request, endpoint
     );
     if (!response.success) {
-      throw new Error(response.message ?? "Failed to load story.");
+      throw new Error(response.message ?? `Failed to load ${itemDescription}.`);
     }
     if (!Array.isArray(response.items) || !response.items.every(isStatusDto) || typeof response.hasMore !== "boolean") {
-      throw new Error("Invalid story response.");
+      throw new Error(`Invalid ${itemDescription} response.`);
     }
     return [response.items.map((dto) => Status.fromDto(dto)), response.hasMore];
   }

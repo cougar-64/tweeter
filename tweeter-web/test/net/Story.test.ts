@@ -7,16 +7,19 @@ import { ServerFacade } from "../../src/net/ServerFacade";
 const request = new PagedStatusItemRequest("dummy-token", "@allen", 10, null);
 const dto = { post: "Hello @amy https://byu.edu", timestamp: 0, user: { firstName: "Allen", lastName: "Anderson", alias: "@allen", imageUrl: "image.png" } };
 
-describe("Story client networking", () => {
+describe.each([
+  { feature: "story", facadeMethod: "getMoreStory" as const, serviceMethod: "loadMoreStoryItems" as const },
+  { feature: "feed", facadeMethod: "getMoreFeed" as const, serviceMethod: "loadMoreFeedItems" as const },
+])("$feature client networking", ({ feature, facadeMethod, serviceMethod }) => {
   afterEach(() => jest.restoreAllMocks());
 
   it("reconstructs nested domain objects and regenerates clickable segments", async () => {
     const operation = jest.spyOn(ClientCommunicator.prototype, "doPost")
       .mockResolvedValue(new PagedStatusItemResponse(true, null, [dto], true));
 
-    const [items, hasMore] = await new ServerFacade().getMoreStory(request);
+    const [items, hasMore] = await new ServerFacade()[facadeMethod](request);
 
-    expect(operation).toHaveBeenCalledWith(request, "/story/list");
+    expect(operation).toHaveBeenCalledWith(request, `/${feature}/list`);
     expect(hasMore).toBe(true);
     expect(items[0]).toBeInstanceOf(Status);
     expect(items[0].user).toBeInstanceOf(User);
@@ -31,7 +34,7 @@ describe("Story client networking", () => {
   it("preserves an empty final page", async () => {
     jest.spyOn(ClientCommunicator.prototype, "doPost").mockResolvedValue(new PagedStatusItemResponse(true, null, [], false));
 
-    await expect(new ServerFacade().getMoreStory(request)).resolves.toEqual([[], false]);
+    await expect(new ServerFacade()[facadeMethod](request)).resolves.toEqual([[], false]);
   });
 
   it.each([
@@ -44,14 +47,14 @@ describe("Story client networking", () => {
     const response = { success: true, message: null, ...page };
     jest.spyOn(ClientCommunicator.prototype, "doPost").mockResolvedValue(response);
 
-    await expect(new ServerFacade().getMoreStory(request)).rejects.toThrow("Invalid story response.");
+    await expect(new ServerFacade()[facadeMethod](request)).rejects.toThrow(`Invalid ${feature} response.`);
   });
 
-  it.each([["Story unavailable", "Story unavailable"], [null, "Failed to load story."]] as const)(
+  it.each([["Page unavailable", "Page unavailable"], [null, `Failed to load ${feature}.`]] as const)(
     "propagates an unsuccessful operation with message %p", async (message, expected) => {
       jest.spyOn(ClientCommunicator.prototype, "doPost").mockResolvedValue(new PagedStatusItemResponse(false, message, [], false));
 
-      await expect(new ServerFacade().getMoreStory(request)).rejects.toThrow(expected);
+      await expect(new ServerFacade()[facadeMethod](request)).rejects.toThrow(expected);
     }
   );
 
@@ -59,20 +62,20 @@ describe("Story client networking", () => {
     const facade = new ServerFacade();
     const cursor = Status.fromDto(dto);
     const result: [Status[], boolean] = [[cursor], true];
-    const operation = jest.spyOn(facade, "getMoreStory").mockResolvedValue(result);
+    const operation = jest.spyOn(facade, facadeMethod).mockResolvedValue(result);
     const service = new StatusService(facade);
     const token = new AuthToken(request.token, Date.now());
 
-    await expect(service.loadMoreStoryItems(token, request.userAlias, 10, null)).resolves.toBe(result);
+    await expect(service[serviceMethod](token, request.userAlias, 10, null)).resolves.toBe(result);
     expect(operation).toHaveBeenLastCalledWith(request);
-    await expect(service.loadMoreStoryItems(token, request.userAlias, 10, cursor)).resolves.toBe(result);
+    await expect(service[serviceMethod](token, request.userAlias, 10, cursor)).resolves.toBe(result);
     expect(operation).toHaveBeenLastCalledWith(new PagedStatusItemRequest(request.token, request.userAlias, 10, dto));
   });
 
   it("propagates transport failures through the facade and service", async () => {
     jest.spyOn(ClientCommunicator.prototype, "doPost").mockRejectedValue(new Error("HTTP failure"));
 
-    await expect(new StatusService().loadMoreStoryItems(new AuthToken(request.token, 0), "@allen", 10, null))
+    await expect(new StatusService()[serviceMethod](new AuthToken(request.token, 0), "@allen", 10, null))
       .rejects.toThrow("HTTP failure");
   });
 });

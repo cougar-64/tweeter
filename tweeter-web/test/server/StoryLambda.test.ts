@@ -1,17 +1,22 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import { FakeData, Status, User } from "tweeter-shared";
-import { handler } from "../../../tweeter-server/src/lambda/status/GetStoryLambda";
+import { handler as storyHandler } from "../../../tweeter-server/src/lambda/status/GetStoryLambda";
+import { handler as feedHandler } from "../../../tweeter-server/src/lambda/status/GetFeedLambda";
 import { StatusService } from "../../../tweeter-server/src/model/service/StatusService";
 
 const request = { token: "dummy-token", userAlias: "@allen", pageSize: 10, lastItem: null };
 
-describe("Story Lambda", () => {
+describe.each([
+  { feature: "Story", handler: storyHandler, method: "loadMoreStoryItems" as const, otherMethod: "loadMoreFeedItems" as const },
+  { feature: "Feed", handler: feedHandler, method: "loadMoreFeedItems" as const, otherMethod: "loadMoreStoryItems" as const },
+])("$feature Lambda", ({ handler, method, otherMethod }) => {
   afterEach(() => jest.restoreAllMocks());
 
   it("reconstructs the cursor, forwards inputs, and returns status DTOs", async () => {
     const cursor = new Status("Hello @amy", new User("Allen", "Anderson", "@allen", "image.png"), 0);
     const next = new Status("Another post", cursor.user, 123);
-    const operation = jest.spyOn(StatusService.prototype, "loadMoreStoryItems").mockResolvedValue([[next], false]);
+    const operation = jest.spyOn(StatusService.prototype, method).mockResolvedValue([[next], false]);
+    const otherOperation = jest.spyOn(StatusService.prototype, otherMethod);
 
     await expect(handler({ ...request, lastItem: cursor.dto }))
       .resolves.toEqual({ success: true, message: null, items: [next.dto], hasMore: false });
@@ -19,6 +24,7 @@ describe("Story Lambda", () => {
     const receivedCursor = operation.mock.calls[0][3]!;
     expect(receivedCursor.user).toBeInstanceOf(User);
     expect(receivedCursor.equals(cursor)).toBe(true);
+    expect(otherOperation).not.toHaveBeenCalled();
   });
 
   it("returns the expected first page of dummy statuses", async () => {
@@ -45,9 +51,9 @@ describe("Story Lambda", () => {
   });
 
   it("propagates service failures", async () => {
-    jest.spyOn(StatusService.prototype, "loadMoreStoryItems").mockRejectedValue(new Error("Story failed"));
+    jest.spyOn(StatusService.prototype, method).mockRejectedValue(new Error("Page failed"));
 
-    await expect(handler(request)).rejects.toThrow("Story failed");
+    await expect(handler(request)).rejects.toThrow("Page failed");
   });
 
   const validCursor = { post: "Hello", timestamp: 0, user: { firstName: "Allen", lastName: "Anderson", alias: "@allen", imageUrl: "image.png" } };
@@ -63,7 +69,7 @@ describe("Story Lambda", () => {
     ["missing author", { ...request, lastItem: { ...validCursor, user: null } }],
     ["blank author alias", { ...request, lastItem: { ...validCursor, user: { ...validCursor.user, alias: " " } } }],
   ])("rejects %s before calling the service", async (_description, invalidRequest) => {
-    const operation = jest.spyOn(StatusService.prototype, "loadMoreStoryItems");
+    const operation = jest.spyOn(StatusService.prototype, method);
 
     await expect(handler(invalidRequest)).rejects.toThrow("[Bad Request]");
     expect(operation).not.toHaveBeenCalled();
