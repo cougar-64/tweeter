@@ -117,3 +117,8 @@
 - Tool: OpenAI Codex
 - Task: Prepare Login through public/authenticated request classes, user/token DTOs, server service and Lambda, SAM endpoint, and client facade/service while preserving dummy login behavior and token storage compatibility. Add offline and pending live integration tests, preserve existing authenticated-request validation, and document deployment and manual verification.
 - Review: ServerFacade implements login method. 
+
+## 2026-11-09: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved Login AWS change set and verify the direct Lambda user/token DTOs, stable public success/validation and preflight responses, and all 51 live integration tests, including token reuse for Get User. Update deployment documentation and milestone progress, leaving browser verification and review to the user.
+- Review: Login successful on the browser end
