@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 // validates JSON responses and reconstructs User objects.
 import { AuthToken, User } from "tweeter-shared";
-import type { AuthenticationResponse, AuthTokenDto, CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, LoginRequest, PagedUserItemRequest, PagedUserItemResponse, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
+import type { AuthenticationResponse, AuthTokenDto, CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, LoginRequest, PagedUserItemRequest, PagedUserItemResponse, RegisterRequest, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
 import { ClientCommunicator } from "./ClientCommunicator";
 
 export class ServerFacade {
@@ -14,14 +14,26 @@ export class ServerFacade {
   }
 
   public async login(request: LoginRequest): Promise<[User, AuthToken]> {
-    const response = await this.clientCommunicator.doPost<LoginRequest, AuthenticationResponse>(
-      request, "/user/login"
+    return this.authenticate(request, "/user/login", "login");
+  }
+
+  public async register(request: RegisterRequest): Promise<[User, AuthToken]> {
+    return this.authenticate(request, "/user/register", "register");
+  }
+
+  private async authenticate(
+    request: LoginRequest | RegisterRequest,
+    endpoint: string,
+    action: string
+  ): Promise<[User, AuthToken]> {
+    const response = await this.clientCommunicator.doPost<LoginRequest | RegisterRequest, AuthenticationResponse>(
+      request, endpoint
     );
     if (!response.success) {
-      throw new Error(response.message ?? "Failed to login.");
+      throw new Error(response.message ?? `Failed to ${action}.`);
     }
     if (!this.isUserDto(response.user) || !this.isAuthTokenDto(response.authToken)) {
-      throw new Error("Invalid login response.");
+      throw new Error(`Invalid ${action} response.`);
     }
     return [User.fromDto(response.user), AuthToken.fromDto(response.authToken)];
   }

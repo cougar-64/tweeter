@@ -27,10 +27,10 @@ Run the project by running 'npm start' from within the 'tweeter-web' folder.
 
 ## Tweeter Backend with AWS SAM
 
-The root `template.yaml` describes follow, user-lookup, and login Lambdas and a REST API
+The root `template.yaml` describes follow, user-lookup, login, and registration Lambdas and a REST API
 with `POST /followers/list`, `POST /followees/list`, `POST /followers/count`,
 `POST /followees/count`, `POST /follow/status`, `POST /follow`, `POST /unfollow`,
-`POST /user/get`, and `POST /user/login`.
+`POST /user/get`, `POST /user/login`, and `POST /user/register`.
 Each handler receives the JSON request directly through a
 non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
 starting with `[Bad Request]`, and 500 for other Lambda errors. CORS is configured
@@ -43,7 +43,7 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-All nine routes are deployed in this stack.
+Nine routes are deployed in this stack; `POST /user/register` is prepared locally.
 On 2026-11-09, all 51 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
@@ -143,8 +143,7 @@ produce HTTP 400; service failures propagate as errors.
 ServerFacade validates the returned DTO and reconstructs a User with working
 getters and methods. Missing or malformed user data is rejected; only explicit
 null means no match. The client `UserService` now accepts an optional facade
-for testing and delegates this lookup; its register/logout placeholders
-remain for subsequent features. The payload is `tweeter-server/events/get-user.json`.
+for testing and delegates this lookup. The payload is `tweeter-server/events/get-user.json`.
 
 Login is deployed at `POST /user/login`. `LoginRequest` contains alias and
 password and extends the common `TweeterRequest` base without requiring an
@@ -157,13 +156,33 @@ The server `UserService.login` preserves the previous dummy behavior: any
 nonempty credentials return the first FakeData user (Allen Anderson) and the
 FakeData authentication token. It does not verify passwords or create a real
 session. `LoginLambda` returns `AuthenticationResponse` containing a `UserDto`
-and `AuthTokenDto` (`token` and `timestamp`). The response contract can also be
-used by Register when implemented. ServerFacade validates both DTOs and returns
+and `AuthTokenDto` (`token` and `timestamp`). Register uses the same response
+contract. ServerFacade validates both DTOs and returns
 `[User, AuthToken]` to the client service. `AuthToken.dto` and `fromDto` support
 the network conversion; existing `toJson`/`fromJson` storage with `_token` and
 `_timestamp` remains unchanged. The sample payload uses dummy credentials in
 `tweeter-server/events/login.json`; requests and tokens are not logged by this
-implementation. Register and Logout still use client placeholders.
+implementation. Logout still uses a client placeholder.
+
+Register is prepared at `POST /user/register`. `RegisterRequest` contains
+`firstName`, `lastName`, `alias`, `password`, `imageStringBase64`, and
+`imageFileExtension`. The client UserService encodes its Uint8Array image bytes
+as Base64 before calling the facade. It no longer accesses FakeData directly.
+`validateRegisterRequest` reuses credential validation from `validateLoginRequest`,
+then requires nonempty names, image text, and extension, and checks standard
+Base64 syntax. This checks the encoding, not the contents of an image file.
+The server `register` preserves the old dummy behavior: it returns Allen Anderson
+and a FakeData token, without storing the submitted user or image.
+
+`AuthenticationLambda<REQ>` shares the validate/authenticate/DTO-response sequence
+between Login and Register. Each subclass supplies its request validator and
+server service call. The facade's private `authenticate` helper shares response
+validation and User/AuthToken reconstruction while public login/register methods
+select their own endpoints. The sample payload is
+`tweeter-server/events/register.json`, containing dummy credentials and a small
+Base64 PNG. SAM artifacts are built locally; the AWS change set is not yet
+prepared because the CLI session expired. Run `aws login --profile default`
+before preparing it, and review the change set before execution.
 
 The default response template checks for Lambda's `errorMessage` field and uses
 `$context.responseOverride.status` to return HTTP 500 for unexpected errors.
@@ -201,6 +220,7 @@ The follow artifact is `.aws-sam/build/FollowFunction/FollowLambda.js`.
 The unfollow artifact is `.aws-sam/build/UnfollowFunction/UnfollowLambda.js`.
 The Get User artifact is `.aws-sam/build/GetUserFunction/GetUserLambda.js`.
 The Login artifact is `.aws-sam/build/LoginFunction/LoginLambda.js`.
+The Register artifact is `.aws-sam/build/RegisterFunction/RegisterLambda.js`.
 
 To invoke the built handler directly with Node, without Docker or AWS:
 
@@ -328,6 +348,13 @@ nonempty token and numeric timestamp. Confirm the application signs in as Allen,
 then open another profile and check subsequent requests carry the returned
 token. This tests the request sequence, not real credential/token verification.
 
+After deploying Register, sign out, open the registration form, fill all fields
+with dummy values, and choose an image. Filter Network for `user/register`.
+Confirm the POST contains the six registration fields, with the image as a
+Base64 string and no existing token. Expect HTTP 200 with `success: true`,
+Allen Anderson's user DTO, and an authentication token DTO, followed by sign-in
+as Allen. The entered identity and image are not persisted in this milestone.
+
 ## Running Tests
 
 Run the offline component, presenter, facade-validation, and Lambda handler tests from the repository root:
@@ -336,7 +363,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-Run all 51 live integration tests separately:
+After deploying Register, run all 58 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -348,6 +375,12 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
+
+Until Register is deployed, run the 51 tests for existing endpoints:
+
+```sh
+npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/Register.test.ts$'
+```
 
 To run only the list-feature integration tests:
 
@@ -416,26 +449,35 @@ domain reconstruction, and compatibility with existing token storage. Existing
 handler tests also ensure the request hierarchy change preserves required-token
 validation for authenticated operations.
 
+`Register.test.ts` adds seven pending live tests, including the assignment's
+required Register ServerFacade integration test. They verify the exact dummy
+user/token result, Base64 image transport through the client service, token reuse
+with Get User, empty alias/missing image/malformed Base64 errors, and preflight
+CORS. Offline Register tests check all six fields, service routing, image byte
+encoding, failure propagation, and malformed response DTOs. The Login tests also
+pass after extracting shared authentication handling.
+
 During Follow deployment, the first live test run received intermittent API
 Gateway `Missing Authentication Token` responses even after one successful
 request. Once success and validation responses were stable for three consecutive
 rounds, all 34 live tests passed without code changes.
 
-## Milestone 3 Progress (2026-11-09)
+## Milestone 3 Progress (2026-11-10)
 
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Nine deployed features; five features remain |
-| Shared request/response contracts | Login/authentication DTOs added; registration, logout, and post requests pending |
+| Move all service logic to the server | Nine deployed features; Register prepared as the tenth |
+| Shared request/response contracts | Registration request added; logout and post/status request contracts pending |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 9 deployed and verified by live tests; Login and Unfollow browser checks pending |
-| Required Jest integration tests | Followers and follower count pass; register and StatusService story tests pending |
+| Repeat for all 14 features | 9 deployed and verified by live tests; Register prepared as the tenth; Unfollow browser check pending |
+| Required Jest integration tests | Followers and follower count pass; Register tests written and await deployment; StatusService story pending |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and browser
-verified. Login is deployed and passes all six live checks; browser verification
-is pending. The five remaining features are register,
-logout, feed, story, and post status. The offline suite has 187 passing tests;
-the deployed integration suite has 51 passing tests.
+verified. Login is deployed and browser verified. Register is prepared locally;
+the other four remaining features are logout, feed, story, and post status.
+The offline suite has 226 passing tests; the deployed integration suite has 51
+passing tests. Seven Register live tests await deployment. AWS change-set
+preparation requires renewing the expired CLI login.

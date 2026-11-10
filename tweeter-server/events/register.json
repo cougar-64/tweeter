@@ -1,0 +1,8 @@
+{
+  "firstName": "Test",
+  "lastName": "User",
+  "alias": "@test-user",
+  "password": "milestone-3-test-password",
+  "imageStringBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+  "imageFileExtension": "png"
+}

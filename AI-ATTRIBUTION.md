@@ -121,4 +121,9 @@
 ## 2026-11-09: README.md, AI-ATTRIBUTION.md
 - Tool: OpenAI Codex
 - Task: Execute the approved Login AWS change set and verify the direct Lambda user/token DTOs, stable public success/validation and preflight responses, and all 51 live integration tests, including token reuse for Get User. Update deployment documentation and milestone progress, leaving browser verification and review to the user.
-- Review: Login successful on the browser end
+- Review: Login successful on the browser end.
+
+## 2026-11-10: tweeter-shared/src/model/net/request/RegisterRequest.ts (new file), tweeter-shared/src/index.ts, tweeter-server/src/lambda/AuthenticationLambda.ts (new file), tweeter-server/src/lambda/user/LoginLambda.ts, tweeter-server/src/lambda/user/RegisterLambda.ts (new file), tweeter-server/src/lambda/validation/validateRegisterRequest.ts (new file), tweeter-server/src/model/service/UserService.ts, tweeter-server/events/register.json (new file), tweeter-web/src/model.service/UserService.ts, tweeter-web/src/net/ServerFacade.ts, tweeter-web/test/server/RegisterLambda.test.ts (new file), tweeter-web/test/net/Register.test.ts (new file), tweeter-web/test/integration/Register.test.ts (new file), Makefile, template.yaml, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare Register with Base64 image transport, shared authentication response handling, server validation/service/Lambda, and the SAM endpoint while preserving dummy registration behavior. Add offline and required facade integration tests, verify existing Login behavior, and document pending deployment; AWS change-set preparation awaits renewed CLI login.
+- Review: `LoginLambda.ts` now includes an authenticate function to authenticate new users (register). Register created for `ServerFacade.ts`, 

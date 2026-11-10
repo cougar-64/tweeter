@@ -1,11 +1,18 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { AuthenticationResponse } from "tweeter-shared";
+import type { AuthToken, LoginRequest, User } from "tweeter-shared";
 import { UserService } from "../../model/service/UserService";
+import { AuthenticationLambda } from "../AuthenticationLambda";
 import { validateLoginRequest } from "../validation/validateLoginRequest";
 
-export async function handler(request: unknown): Promise<AuthenticationResponse> {
-  validateLoginRequest(request);
+export class LoginLambda extends AuthenticationLambda<LoginRequest> {
+  protected validateRequest(request: unknown): LoginRequest {
+    validateLoginRequest(request);
+    return request;
+  }
 
-  const [user, authToken] = await new UserService().login(request.alias, request.password);
-  return new AuthenticationResponse(true, null, user.dto, authToken.dto);
+  protected authenticate(request: LoginRequest): Promise<[User, AuthToken]> {
+    return new UserService().login(request.alias, request.password);
+  }
 }
+
+export const handler = (request: unknown) => new LoginLambda().handle(request);

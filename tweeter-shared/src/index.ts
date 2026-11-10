@@ -9,6 +9,7 @@ export type { AuthTokenDto } from "./model/dto/AuthTokenDto";
 export { TweeterRequest } from "./model/net/request/TweeterRequest";
 export { AuthenticatedRequest } from "./model/net/request/AuthenticatedRequest";
 export { LoginRequest } from "./model/net/request/LoginRequest";
+export { RegisterRequest } from "./model/net/request/RegisterRequest";
 export { UserAliasRequest } from "./model/net/request/UserAliasRequest";
 export { FollowingStatusRequest } from "./model/net/request/FollowingStatusRequest";
 export { PagedUserItemRequest } from "./model/net/request/PagedUserItemRequest";
