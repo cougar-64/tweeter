@@ -27,10 +27,11 @@ Run the project by running 'npm start' from within the 'tweeter-web' folder.
 
 ## Tweeter Backend with AWS SAM
 
-The root `template.yaml` describes follow and user-management Lambdas and a REST API
+The root `template.yaml` describes follow, user-management, and story Lambdas and a REST API
 with `POST /followers/list`, `POST /followees/list`, `POST /followers/count`,
 `POST /followees/count`, `POST /follow/status`, `POST /follow`, `POST /unfollow`,
-`POST /user/get`, `POST /user/login`, `POST /user/register`, and `POST /user/logout`.
+`POST /user/get`, `POST /user/login`, `POST /user/register`, `POST /user/logout`,
+and `POST /story/list`.
 Each handler receives the JSON request directly through a
 non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
 starting with `[Bad Request]`, and 500 for other Lambda errors. CORS is configured
@@ -43,7 +44,7 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-All eleven routes are deployed in this stack.
+Eleven routes are deployed in this stack; `POST /story/list` is prepared locally.
 On 2026-11-10, all 62 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
@@ -201,6 +202,24 @@ navigating to Login, and reports errors when the call fails. All methods in the
 client UserService now call the server API. The sample request is
 `tweeter-server/events/logout.json`.
 
+Story is prepared at `POST /story/list`. `PagedStatusItemRequest` contains the
+token, requested user alias, page size, and a nullable `StatusDto` cursor.
+`PagedStatusItemResponse` contains status DTOs and `hasMore`. Each `StatusDto`
+contains post text, a nested `UserDto`, and a timestamp. The shared `isStatusDto`
+predicate validates this JSON shape on both sides, including a finite nonnegative
+timestamp and nonempty author alias. Timestamp zero is valid in FakeData.
+
+`PagedStatusLambda` validates the request, reconstructs a Status cursor, calls
+its subclass's page loader, and returns DTOs. `GetStoryLambda` calls the new
+server `StatusService.loadMoreStoryItems`, which preserves the previous shared
+44-status FakeData list; it does not yet filter by user alias. The facade
+reconstructs each Status and its author through `Status.fromDto`. The Status
+constructor regenerates mention/URL/newline segments, so clickable links and
+`equals` continue to work. Existing status storage JSON remains unchanged.
+The client StatusService now accepts an optional facade for testing and delegates
+Story; Feed and Post Status retain their placeholders. The sample payload is
+`tweeter-server/events/get-story.json`.
+
 The default response template checks for Lambda's `errorMessage` field and uses
 `$context.responseOverride.status` to return HTTP 500 for unexpected errors.
 This avoids a broad error regex also selecting successful responses.
@@ -239,6 +258,7 @@ The Get User artifact is `.aws-sam/build/GetUserFunction/GetUserLambda.js`.
 The Login artifact is `.aws-sam/build/LoginFunction/LoginLambda.js`.
 The Register artifact is `.aws-sam/build/RegisterFunction/RegisterLambda.js`.
 The Logout artifact is `.aws-sam/build/LogoutFunction/LogoutLambda.js`.
+The Story artifact is `.aws-sam/build/GetStoryFunction/GetStoryLambda.js`.
 
 To invoke the built handler directly with Node, without Docker or AWS:
 
@@ -380,6 +400,16 @@ then clear the signed-in user and navigate to Login. Preserve log keeps the
 request visible through navigation. This verifies the client logout sequence;
 the dummy server does not revoke tokens yet.
 
+After deploying Story, sign in and open **Story**. Filter Network for
+`story/list` and confirm POST requests include the token, alias, page size, and
+`lastItem: null` initially. The response should contain ten status DTOs and
+`hasMore: true`; the first post is Allen's `Post 0 0`, mentioning Amy and BYU URLs.
+Scroll and check later requests send the preceding page's last status DTO.
+At page size ten, the five pages contain 10, 10, 10, 10, and 4 statuses, ending
+with `hasMore: false`. Check author names, timestamps, mentions, and URL links
+render correctly. The dummy list includes multiple authors even on one user's
+Story; filtering awaits real storage.
+
 ## Running Tests
 
 Run the offline component, presenter, facade-validation, and Lambda handler tests from the repository root:
@@ -388,7 +418,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-Run all 62 live integration tests separately:
+After deploying Story, run all 69 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -400,6 +430,12 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
+
+Until Story is deployed, run the 62 tests for existing endpoints:
+
+```sh
+npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/Story.test.ts$'
+```
 
 To run only the list-feature integration tests:
 
@@ -433,7 +469,7 @@ against AWS. `test/server/FollowCountLambdas.test.ts` (renamed from
 The facade count tests also verify that each operation selects the correct URL
 and client service method, since random FakeData counts alone cannot distinguish
 the two operations. The assignment's Register integration test now passes;
-the client StatusService story test remains for that feature's implementation.
+the client StatusService story test is written and awaits Story deployment.
 
 `FollowingStatus.test.ts` in the integration directory provides five passing checks
 against the deployed endpoint. The offline server and client following-status tests
@@ -483,6 +519,15 @@ completion, validation before service calls, and failure propagation. Existing
 LogoutPresenter tests verify user information is cleared and navigation occurs
 on success, and neither happens after a failed logout.
 
+`Story.test.ts` adds seven pending live tests, including the assignment-required
+client StatusService story integration test. It checks the exact first status,
+nested User/Status instances and clickable segments, all 44 unique statuses
+through facade pagination, the final empty page, invalid token/alias/page size/
+cursor errors with HTTP 400 and CORS, and preflight. Offline tests cover DTO and
+storage round trips, cursor reconstruction, response validation, service routing,
+and error propagation. An isolated packaged-handler check also verified all
+five pages and the final empty page.
+
 During Follow deployment, the first live test run received intermittent API
 Gateway `Missing Authentication Token` responses even after one successful
 request. Once success and validation responses were stable for three consecutive
@@ -493,17 +538,17 @@ rounds, all 34 live tests passed without code changes.
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Eleven deployed features; feed, story, and post status remain |
-| Shared request/response contracts | Follow/user contracts complete; feed/story/post contracts pending |
+| Move all service logic to the server | Eleven deployed features; Story prepared as the twelfth |
+| Shared request/response contracts | Status DTO and paging contracts added; Post Status request pending |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 11 deployed and verified by live tests; Logout and Unfollow browser checks pending |
-| Required Jest integration tests | Register, Followers, and follower count facade tests pass; StatusService story pending |
+| Repeat for all 14 features | 11 deployed and verified by live tests; Story prepared as the twelfth; Unfollow browser check pending |
+| Required Jest integration tests | Required facade tests pass; StatusService story test written and awaiting deployment |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and browser
-verified. Login and Register are deployed and browser verified. Logout is
-deployed and passes all four live checks; browser verification is pending.
-The three remaining features are feed, story, and post
-status. The offline suite has 241 passing tests; the deployed integration suite
-has 62 passing tests.
+verified. Login, Register, and Logout are deployed and browser verified. Story is
+prepared locally; the other two remaining features are Feed and Post Status.
+The offline suite has 275 passing tests; the deployed integration suite has 62
+passing tests. Seven Story live tests await deployment. Documentation, API export,
+and passoff work remain after the features are completed.

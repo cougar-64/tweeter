@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-// validates JSON responses and reconstructs User objects.
-import { AuthToken, User } from "tweeter-shared";
-import type { AuthenticatedRequest, AuthenticationResponse, AuthTokenDto, CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, LoginRequest, PagedUserItemRequest, PagedUserItemResponse, RegisterRequest, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
+// validates JSON responses and reconstructs domain objects.
+import { AuthToken, isStatusDto, Status, User } from "tweeter-shared";
+import type { AuthenticatedRequest, AuthenticationResponse, AuthTokenDto, CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, LoginRequest, PagedStatusItemRequest, PagedStatusItemResponse, PagedUserItemRequest, PagedUserItemResponse, RegisterRequest, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
 import { ClientCommunicator } from "./ClientCommunicator";
 
 export class ServerFacade {
@@ -52,6 +52,19 @@ export class ServerFacade {
       throw new Error("Invalid get user response.");
     }
     return User.fromDto(response.user);
+  }
+
+  public async getMoreStory(request: PagedStatusItemRequest): Promise<[Status[], boolean]> {
+    const response = await this.clientCommunicator.doPost<PagedStatusItemRequest, PagedStatusItemResponse>(
+      request, "/story/list"
+    );
+    if (!response.success) {
+      throw new Error(response.message ?? "Failed to load story.");
+    }
+    if (!Array.isArray(response.items) || !response.items.every(isStatusDto) || typeof response.hasMore !== "boolean") {
+      throw new Error("Invalid story response.");
+    }
+    return [response.items.map((dto) => Status.fromDto(dto)), response.hasMore];
   }
 
   public async getMoreFollowers(request: PagedUserItemRequest): Promise<[User[], boolean]> {

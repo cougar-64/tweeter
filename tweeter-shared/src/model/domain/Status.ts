@@ -1,3 +1,5 @@
+// AI-assisted: see AI-ATTRIBUTION.md
+import type { StatusDto } from "../dto/StatusDto";
 import { PostSegment, Type } from "./PostSegment";
 import { User } from "./User";
 import { format } from "date-fns";
@@ -228,6 +230,14 @@ export class Status {
 
   public toJson(): string {
     return JSON.stringify(this);
+  }
+
+  public get dto(): StatusDto {
+    return { post: this.post, user: this.user.dto, timestamp: this.timestamp };
+  }
+
+  public static fromDto(dto: StatusDto): Status {
+    return new Status(dto.post, User.fromDto(dto.user), dto.timestamp);
   }
 
   public get imageUrl() {
