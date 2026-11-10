@@ -157,3 +157,8 @@
 - Tool: OpenAI Codex
 - Task: Prepare Feed through its server service/Lambda, SAM endpoint, and client service/facade using Story's existing status paging contracts. Share facade handling, extend offline tests to verify separate Feed/Story routing, add pending live Feed tests, and document dummy behavior and deployment progress.
 - Review: Feed implemented through serverfacade and status service. lambda ready to upload to AWS.
+
+## 2026-11-10: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved Feed AWS change set and verify the direct Lambda first page, stable public success/validation and preflight responses, and all 74 live integration tests. Confirm complete Feed pagination and existing Story behavior, and update deployment documentation and milestone progress while leaving browser verification to the user.
+- Review: Browser check shows response status 200 and the correct amount of posts (feed) displayed.

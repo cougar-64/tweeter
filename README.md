@@ -44,8 +44,8 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-Twelve routes are deployed in this stack; `POST /feed/list` is prepared locally.
-On 2026-11-10, all 69 live integration tests passed, covering facade and client
+All thirteen routes are deployed in this stack.
+On 2026-11-10, all 74 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
 and the count Lambdas returned valid FakeData counts. The following-status Lambda
@@ -68,6 +68,10 @@ The Story Lambda returned ten status DTOs and the expected first post on direct
 invocation. Public first-page, validation-error, and OPTIONS/CORS checks passed
 three consecutive rounds. The full suite verified all 44 statuses and the final
 empty page, including the required client StatusService story test.
+The Feed Lambda returned ten status DTOs and the expected first post on direct
+invocation. Public Feed first-page, validation-error, and OPTIONS/CORS checks
+passed three consecutive rounds before the full 74-test suite verified complete
+Feed pagination and the existing Story behavior.
 
 The list handlers use
 `validatePagedUserItemRequest` to enforce the same paginated-user request
@@ -224,7 +228,7 @@ The client StatusService now accepts an optional facade for testing and delegate
 Story; Post Status retains its placeholder. The sample payload is
 `tweeter-server/events/get-story.json`.
 
-Feed is prepared at `POST /feed/list`. It reuses the status DTOs, paged request/
+Feed is deployed at `POST /feed/list`. It reuses the status DTOs, paged request/
 response contracts, and `PagedStatusLambda` introduced for Story. `GetFeedLambda`
 calls the server's separate `loadMoreFeedItems` method. The facade's public
 `getMoreStory` and `getMoreFeed` methods choose their own endpoints and share
@@ -428,7 +432,7 @@ with `hasMore: false`. Check author names, timestamps, mentions, and URL links
 render correctly. The dummy list includes multiple authors even on one user's
 Story; filtering awaits real storage.
 
-After deploying Feed, sign in and open **Feed**. Filter Network for `feed/list`,
+For the Feed browser check, sign in and open **Feed**. Filter Network for `feed/list`,
 confirm HTTP 200 with ten status DTOs initially, and scroll to see the last status
 DTO passed as the next request's cursor. At page size ten, expect pages of
 10, 10, 10, 10, and 4 items and then `hasMore: false`. Check author names,
@@ -442,7 +446,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-After deploying Feed, run all 74 live integration tests separately:
+Run all 74 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -454,12 +458,6 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
-
-Until Feed is deployed, run the 69 tests for existing endpoints:
-
-```sh
-npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/Feed.test.ts$'
-```
 
 To run only the list-feature integration tests:
 
@@ -552,7 +550,7 @@ storage round trips, cursor reconstruction, response validation, service routing
 and error propagation. An isolated packaged-handler check also verified all
 five pages and the final empty page.
 
-`Feed.test.ts` adds five pending live checks: exact first-page content through
+`Feed.test.ts` provides five passing live checks: exact first-page content through
 client StatusService, all 44 unique statuses and the final empty page through
 ServerFacade, empty token/alias errors, and preflight CORS. Existing offline
 `StoryLambda.test.ts` and `test/net/Story.test.ts` now run their cases for both
@@ -570,18 +568,18 @@ rounds, all 34 live tests passed without code changes.
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Twelve deployed features; Feed prepared as the thirteenth |
+| Move all service logic to the server | Thirteen deployed features; Post Status remains |
 | Shared request/response contracts | Status DTO and paging contracts added; Post Status request pending |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 12 deployed and verified by live tests; Feed prepared as the thirteenth; Unfollow browser check pending |
+| Repeat for all 14 features | 13 deployed and verified by live tests; Feed and Unfollow browser checks pending |
 | Required Jest integration tests | Register, Followers, count facade tests and StatusService story test all pass against AWS |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and browser
 verified. Login, Register, Logout, and Story are deployed and browser verified.
-Feed is prepared locally; Post Status is the last feature afterward. The offline
-suite has 309 passing tests; the deployed integration suite has 69 passing tests.
-Five Feed live tests await deployment. All required
+Feed is deployed and passes all five live checks; browser verification is pending.
+Post Status is the last feature remaining. The offline suite has 309 passing
+tests; the deployed integration suite has 74 passing tests. All required
 Milestone 3 integration tests now pass. Documentation, API export,
 and passoff work remain after the features are completed.
