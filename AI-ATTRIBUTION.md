@@ -137,3 +137,8 @@
 - Tool: OpenAI Codex
 - Task: Prepare Logout through the client service/facade, server service and Lambda, and SAM endpoint using the existing token-only request and base response. Move the simulated operation to the server, test validation/completion/failure behavior and the pending live endpoint, and update deployment documentation and progress.
 - Review: Logout implemented through ServerFacade. UserService.ts calls ServerFacade.ts logout method which uses AWS to tell the UserService.ts in the server to logout the user. LogoutLambda also created for AWS deployment. 
+
+## 2026-11-10: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Execute the approved Logout AWS change set and verify the direct Lambda response, stable public success/token-validation and preflight responses, and all 62 live integration tests. Update deployment documentation and milestone progress while leaving browser verification and review to the user.
+- Review: When the user logs out, the browser responds with a 200 status that shows the user logged out successfully and also goes back to the login page. All tests are passing.  

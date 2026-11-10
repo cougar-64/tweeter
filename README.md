@@ -43,8 +43,8 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-Ten routes are deployed in this stack; `POST /user/logout` is prepared locally.
-On 2026-11-10, all 58 live integration tests passed, covering facade and client
+All eleven routes are deployed in this stack.
+On 2026-11-10, all 62 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
 and the count Lambdas returned valid FakeData counts. The following-status Lambda
@@ -60,6 +60,9 @@ three consecutive rounds before all 51 live integration tests passed.
 The Register Lambda returned Allen Anderson's DTO and a valid token DTO on
 direct invocation. Public registration success, validation errors, and
 OPTIONS/CORS passed three consecutive rounds before the full 58-test suite.
+The Logout Lambda returned `success: true` and `message: null` on direct
+invocation. Public Logout success, token-validation errors, and OPTIONS/CORS
+passed three consecutive rounds before all 62 live tests passed.
 
 The list handlers use
 `validatePagedUserItemRequest` to enforce the same paginated-user request
@@ -186,7 +189,7 @@ select their own endpoints. The sample payload is
 Base64 PNG. The reviewed change set was executed after renewing the AWS CLI
 login, and the stack update completed successfully.
 
-Logout is prepared at `POST /user/logout`. It reuses `AuthenticatedRequest`
+Logout is deployed at `POST /user/logout`. It reuses `AuthenticatedRequest`
 containing only `token`, `validateAuthenticatedRequest`, and `TweeterResponse`.
 No new shared contract is needed. `LogoutLambda` validates the request, awaits
 the server's one-second simulated `UserService.logout`, then returns success.
@@ -370,7 +373,7 @@ Base64 string and no existing token. Expect HTTP 200 with `success: true`,
 Allen Anderson's user DTO, and an authentication token DTO, followed by sign-in
 as Allen. The entered identity and image are not persisted in this milestone.
 
-After deploying Logout, sign in, enable **Preserve log** in Network, filter for
+For the Logout browser check, sign in, enable **Preserve log** in Network, filter for
 `user/logout`, and click Logout. Confirm the POST contains only the token and
 returns HTTP 200 with `success: true` and `message: null`. The application should
 then clear the signed-in user and navigate to Login. Preserve log keeps the
@@ -385,7 +388,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-After deploying Logout, run all 62 live integration tests separately:
+Run all 62 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -397,12 +400,6 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
-
-Until Logout is deployed, run the 58 tests for existing endpoints:
-
-```sh
-npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/Logout.test.ts$'
-```
 
 To run only the list-feature integration tests:
 
@@ -479,7 +476,7 @@ CORS. Offline Register tests check all six fields, service routing, image byte
 encoding, failure propagation, and malformed response DTOs. The Login tests also
 pass after extracting shared authentication handling.
 
-`Logout.test.ts` adds four pending live tests: logging out with a token from
+`Logout.test.ts` provides four passing live tests against AWS: logging out with a token from
 Login through the facade, client service success, empty-token validation, and
 preflight CORS. Offline tests check token-only serialization, waiting for server
 completion, validation before service calls, and failure propagation. Existing
@@ -496,16 +493,17 @@ rounds, all 34 live tests passed without code changes.
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Ten deployed features; Logout prepared as the eleventh |
+| Move all service logic to the server | Eleven deployed features; feed, story, and post status remain |
 | Shared request/response contracts | Follow/user contracts complete; feed/story/post contracts pending |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 10 deployed and verified by live tests; Logout prepared as the eleventh; Unfollow browser check pending |
+| Repeat for all 14 features | 11 deployed and verified by live tests; Logout and Unfollow browser checks pending |
 | Required Jest integration tests | Register, Followers, and follower count facade tests pass; StatusService story pending |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and browser
 verified. Login and Register are deployed and browser verified. Logout is
-prepared locally. The other three remaining features are feed, story, and post
+deployed and passes all four live checks; browser verification is pending.
+The three remaining features are feed, story, and post
 status. The offline suite has 241 passing tests; the deployed integration suite
-has 58 passing tests. Four Logout live tests await deployment.
+has 62 passing tests.
