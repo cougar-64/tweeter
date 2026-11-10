@@ -111,4 +111,9 @@
 ## 2026-11-09: README.md, AI-ATTRIBUTION.md
 - Tool: OpenAI Codex
 - Task: Execute the approved Get User AWS change set and verify the direct Lambda profile, stable public lookup/null/validation and preflight responses, and all 45 live integration tests. Update deployment documentation and milestone progress, leaving manual browser verification and review to the user.
-- Review: Browser checks
+- Review: Browser checks shows everything working as expected.
+
+## 2026-11-09: tweeter-shared/src/model/net/request/TweeterRequest.ts, tweeter-shared/src/model/net/request/AuthenticatedRequest.ts (new file), tweeter-shared/src/model/net/request/UserAliasRequest.ts, tweeter-shared/src/model/net/request/FollowingStatusRequest.ts, tweeter-shared/src/model/net/request/LoginRequest.ts (new file), tweeter-shared/src/model/dto/AuthTokenDto.ts (new file), tweeter-shared/src/model/domain/AuthToken.ts, tweeter-shared/src/model/net/response/AuthenticationResponse.ts (new file), tweeter-shared/src/index.ts, tweeter-server/src/lambda/validation/validateTweeterRequest.ts, tweeter-server/src/lambda/validation/validateUserAliasRequest.ts, tweeter-server/src/lambda/validation/validateFollowingStatusRequest.ts, tweeter-server/src/lambda/validation/validateLoginRequest.ts (new file), tweeter-server/src/model/service/UserService.ts, tweeter-server/src/lambda/user/LoginLambda.ts (new file), tweeter-server/events/login.json (new file), tweeter-web/src/model.service/UserService.ts, tweeter-web/src/net/ServerFacade.ts, tweeter-web/test/server/LoginLambda.test.ts (new file), tweeter-web/test/net/Login.test.ts (new file), tweeter-web/test/integration/Login.test.ts (new file), Makefile, template.yaml, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare Login through public/authenticated request classes, user/token DTOs, server service and Lambda, SAM endpoint, and client facade/service while preserving dummy login behavior and token storage compatibility. Add offline and pending live integration tests, preserve existing authenticated-request validation, and document deployment and manual verification.
+- Review: ServerFacade implements login method. 

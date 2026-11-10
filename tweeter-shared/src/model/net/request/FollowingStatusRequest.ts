@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { TweeterRequest } from "./TweeterRequest";
+import { AuthenticatedRequest } from "./AuthenticatedRequest";
 
-export class FollowingStatusRequest extends TweeterRequest {
+export class FollowingStatusRequest extends AuthenticatedRequest {
   public constructor(
     token: string,
     public readonly followerAlias: string,

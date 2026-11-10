@@ -1,7 +1,16 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { FakeData, User } from "tweeter-shared";
+import { AuthToken, FakeData, User } from "tweeter-shared";
 
 export class UserService {
+  public async login(_alias: string, _password: string): Promise<[User, AuthToken]> {
+    // Preserve Milestone 3 dummy login; real credential checks come later.
+    const user = FakeData.instance.firstUser;
+    if (user === null) {
+      throw new Error("Invalid alias or password");
+    }
+    return [user, FakeData.instance.authToken];
+  }
+
   public async getUser(_token: string, alias: string): Promise<User | null> {
     // Milestone 3 uses dummy users; token verification comes later.
     return FakeData.instance.findUserByAlias(alias);

@@ -27,10 +27,10 @@ Run the project by running 'npm start' from within the 'tweeter-web' folder.
 
 ## Tweeter Backend with AWS SAM
 
-The root `template.yaml` describes follow and user-lookup Lambdas and a REST API
+The root `template.yaml` describes follow, user-lookup, and login Lambdas and a REST API
 with `POST /followers/list`, `POST /followees/list`, `POST /followers/count`,
 `POST /followees/count`, `POST /follow/status`, `POST /follow`, `POST /unfollow`,
-and `POST /user/get`.
+`POST /user/get`, and `POST /user/login`.
 Each handler receives the JSON request directly through a
 non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
 starting with `[Bad Request]`, and 500 for other Lambda errors. CORS is configured
@@ -43,7 +43,7 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-All eight routes are deployed in this stack.
+Eight routes are deployed in this stack; `POST /user/login` is prepared locally.
 On 2026-11-09, all 45 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
@@ -98,8 +98,9 @@ Following status is deployed at `POST /follow/status`.
 `isFollower: false` is valid and means the current user does not follow the
 viewed user.
 
-`validateTweeterRequest` checks the request object and nonempty token. Both
-`validateUserAliasRequest` and `validateFollowingStatusRequest` reuse it before
+`validateTweeterRequest` checks that a request is an object. The same file's
+`validateAuthenticatedRequest` also checks for a nonempty token. Both
+`validateUserAliasRequest` and `validateFollowingStatusRequest` reuse the latter before
 checking their specific alias fields. This preserves the existing list/count
 request formats and error messages. `GetFollowingStatusLambda` delegates to the
 server service, which currently uses FakeData's randomized boolean. Aliases are
@@ -139,8 +140,27 @@ produce HTTP 400; service failures propagate as errors.
 ServerFacade validates the returned DTO and reconstructs a User with working
 getters and methods. Missing or malformed user data is rejected; only explicit
 null means no match. The client `UserService` now accepts an optional facade
-for testing and delegates this lookup; its login/register/logout placeholders
+for testing and delegates this lookup; its register/logout placeholders
 remain for subsequent features. The payload is `tweeter-server/events/get-user.json`.
+
+Login is prepared at `POST /user/login`. `LoginRequest` contains alias and
+password and extends the common `TweeterRequest` base without requiring an
+existing token. `AuthenticatedRequest` now holds the token for protected
+operations; `UserAliasRequest` and `FollowingStatusRequest` extend it, keeping
+their existing JSON unchanged. `validateLoginRequest` checks for an object and
+nonempty alias/password, preserving the supplied credential strings.
+
+The server `UserService.login` preserves the previous dummy behavior: any
+nonempty credentials return the first FakeData user (Allen Anderson) and the
+FakeData authentication token. It does not verify passwords or create a real
+session. `LoginLambda` returns `AuthenticationResponse` containing a `UserDto`
+and `AuthTokenDto` (`token` and `timestamp`). The response contract can also be
+used by Register when implemented. ServerFacade validates both DTOs and returns
+`[User, AuthToken]` to the client service. `AuthToken.dto` and `fromDto` support
+the network conversion; existing `toJson`/`fromJson` storage with `_token` and
+`_timestamp` remains unchanged. The sample payload uses dummy credentials in
+`tweeter-server/events/login.json`; requests and tokens are not logged by this
+implementation. Register and Logout still use client placeholders.
 
 The default response template checks for Lambda's `errorMessage` field and uses
 `$context.responseOverride.status` to return HTTP 500 for unexpected errors.
@@ -177,6 +197,7 @@ The following-status artifact is
 The follow artifact is `.aws-sam/build/FollowFunction/FollowLambda.js`.
 The unfollow artifact is `.aws-sam/build/UnfollowFunction/UnfollowLambda.js`.
 The Get User artifact is `.aws-sam/build/GetUserFunction/GetUserLambda.js`.
+The Login artifact is `.aws-sam/build/LoginFunction/LoginLambda.js`.
 
 To invoke the built handler directly with Node, without Docker or AWS:
 
@@ -296,6 +317,14 @@ navigate to her profile. Filter Network for `user/get`. Confirm the POST include
 `message: null`, and Amy Ames's user DTO. The displayed profile should match.
 The integration tests separately verify a nonexistent alias returns null.
 
+After deploying Login, sign out, open Network, filter for `user/login`, and
+sign in with nonempty dummy credentials. Confirm POST `/dev/user/login` sends
+alias/password without an existing token and returns HTTP 200 with
+`success: true`, Allen Anderson's user DTO, and an `authToken` DTO containing a
+nonempty token and numeric timestamp. Confirm the application signs in as Allen,
+then open another profile and check subsequent requests carry the returned
+token. This tests the request sequence, not real credential/token verification.
+
 ## Running Tests
 
 Run the offline component, presenter, facade-validation, and Lambda handler tests from the repository root:
@@ -304,7 +333,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-Run all 45 live integration tests separately:
+After deploying Login, run all 51 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -316,6 +345,12 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
+
+Until Login is deployed, run the 45 tests for existing endpoints:
+
+```sh
+npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/Login.test.ts$'
+```
 
 To run only the list-feature integration tests:
 
@@ -376,6 +411,14 @@ conversion, domain reconstruction, missing/malformed response fields, successful
 null lookups, and failures. Run tests after `sam build` completes, since building
 cleans and regenerates the shared package used by the tests.
 
+`Login.test.ts` adds six pending live checks: facade and service login results,
+using the returned token in Get User, empty alias/password validation, and
+preflight CORS. Offline Login tests cover credential forwarding, dummy behavior,
+service failures, request validation, missing/malformed user and token fields,
+domain reconstruction, and compatibility with existing token storage. Existing
+handler tests also ensure the request hierarchy change preserves required-token
+validation for authenticated operations.
+
 During Follow deployment, the first live test run received intermittent API
 Gateway `Missing Authentication Token` responses even after one successful
 request. Once success and validation responses were stable for three consecutive
@@ -386,16 +429,17 @@ rounds, all 34 live tests passed without code changes.
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Eight deployed features; six features remain |
-| Shared request/response contracts | User pages, counts, following status, and user lookup implemented; auth and post contracts pending |
+| Move all service logic to the server | Eight deployed features; Login prepared as the ninth |
+| Shared request/response contracts | Login/authentication DTOs added; registration, logout, and post requests pending |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 8 deployed and verified by live tests; Get User and Unfollow browser checks pending |
+| Repeat for all 14 features | 8 deployed and verified by live tests; Login prepared as the ninth; Get User and Unfollow browser checks pending |
 | Required Jest integration tests | Followers and follower count pass; register and StatusService story tests pending |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and passes all
-six live checks; browser verification is pending. The
-other six remaining features are login, register, logout, feed, story, and post
-status. The offline suite has 156 passing tests; the deployed integration suite
-has 45 passing tests.
+six live checks; browser verification is pending.
+Login is prepared locally. The other five remaining features are register,
+logout, feed, story, and post status. The offline suite has 187 passing tests;
+the deployed integration suite has 45 passing tests. Six Login live tests await
+deployment.

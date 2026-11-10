@@ -1,4 +1,4 @@
-.PHONY: build-GetFollowersFunction build-GetFolloweesFunction build-GetFollowerCountFunction build-GetFolloweeCountFunction build-GetFollowingStatusFunction build-FollowFunction build-UnfollowFunction build-GetUserFunction
+.PHONY: build-GetFollowersFunction build-GetFolloweesFunction build-GetFollowerCountFunction build-GetFolloweeCountFunction build-GetFollowingStatusFunction build-FollowFunction build-UnfollowFunction build-GetUserFunction build-LoginFunction
 
 # SAM supplies ARTIFACTS_DIR and expects this target to match the template's logical ID.
 build-GetFollowersFunction:
@@ -40,3 +40,8 @@ build-GetUserFunction:
 	npm run compile --workspace tweeter-shared
 	npm run build --workspace tweeter-server
 	./node_modules/.bin/esbuild tweeter-server/dist/lambda/user/GetUserLambda.js --bundle --platform=node --target=node24 --format=cjs --outfile="$(ARTIFACTS_DIR)/GetUserLambda.js"
+
+build-LoginFunction:
+	npm run compile --workspace tweeter-shared
+	npm run build --workspace tweeter-server
+	./node_modules/.bin/esbuild tweeter-server/dist/lambda/user/LoginLambda.js --bundle --platform=node --target=node24 --format=cjs --outfile="$(ARTIFACTS_DIR)/LoginLambda.js"

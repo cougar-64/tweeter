@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Tweeter Milestone 3 follow features and user lookup API.
+Description: Tweeter Milestone 3 follow features, user lookup, and login API.
 
 Parameters:
   StageName:
@@ -107,6 +107,19 @@ Resources:
     Properties:
       CodeUri: .
       Handler: GetUserLambda.handler
+      Runtime: nodejs24.x
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 10
+
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      CodeUri: .
+      Handler: LoginLambda.handler
       Runtime: nodejs24.x
       Architectures:
         - arm64
@@ -535,6 +548,64 @@ Resources:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
 
+          /user/login:
+            post:
+              summary: Log in a user
+              description: Returns the first dummy user and a dummy authentication token for nonempty credentials. Does not verify real credentials in Milestone 3.
+              responses:
+                '200':
+                  description: A success flag, user DTO, and authentication token DTO.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '400':
+                  description: The alias or password is missing or invalid.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '500':
+                  description: An unexpected server error occurred.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+              x-amazon-apigateway-integration:
+                type: aws
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LoginFunction.Arn}/invocations
+                passthroughBehavior: never
+                requestTemplates:
+                  application/json: '$input.json("$")'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        #set($result = $input.path('$'))
+                        #if($result.containsKey("errorMessage"))
+                        #set($context.responseOverride.status = 500)
+                        {"errorMessage": "An unexpected server error occurred."}
+                        #else
+                        $input.json("$")
+                        #end
+                  '(?s)^\[Bad Request\].*':
+                    statusCode: '400'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+
+  LoginInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LoginFunction
+      Principal: apigateway.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/user/login
+
   GetUserInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -608,6 +679,9 @@ Resources:
       SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${TweeterApi}/*/POST/follow/status
 
 Outputs:
+  LoginFunctionName:
+    Description: Login Lambda function name for direct invocation and debugging.
+    Value: !Ref LoginFunction
   GetUserFunctionName:
     Description: Get User Lambda function name for direct invocation and debugging.
     Value: !Ref GetUserFunction

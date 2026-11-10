@@ -1,9 +1,9 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import type { FollowingStatusRequest } from "tweeter-shared";
-import { validateTweeterRequest } from "./validateTweeterRequest";
+import { validateAuthenticatedRequest } from "./validateTweeterRequest";
 
 export function validateFollowingStatusRequest(request: unknown): asserts request is FollowingStatusRequest {
-  validateTweeterRequest(request);
+  validateAuthenticatedRequest(request);
   if (
     !("followerAlias" in request) ||
     typeof request.followerAlias !== "string" ||

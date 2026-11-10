@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 // validates JSON responses and reconstructs User objects.
-import { User } from "tweeter-shared";
-import type { CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, PagedUserItemRequest, PagedUserItemResponse, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
+import { AuthToken, User } from "tweeter-shared";
+import type { AuthenticationResponse, AuthTokenDto, CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, LoginRequest, PagedUserItemRequest, PagedUserItemResponse, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
 import { ClientCommunicator } from "./ClientCommunicator";
 
 export class ServerFacade {
@@ -11,6 +11,19 @@ export class ServerFacade {
     serverUrl: string = "https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev"
   ) {
     this.clientCommunicator = new ClientCommunicator(serverUrl);
+  }
+
+  public async login(request: LoginRequest): Promise<[User, AuthToken]> {
+    const response = await this.clientCommunicator.doPost<LoginRequest, AuthenticationResponse>(
+      request, "/user/login"
+    );
+    if (!response.success) {
+      throw new Error(response.message ?? "Failed to login.");
+    }
+    if (!this.isUserDto(response.user) || !this.isAuthTokenDto(response.authToken)) {
+      throw new Error("Invalid login response.");
+    }
+    return [User.fromDto(response.user), AuthToken.fromDto(response.authToken)];
   }
 
   public async getUser(request: UserAliasRequest): Promise<User | null> {
@@ -118,6 +131,17 @@ export class ServerFacade {
     }
 
     return [response.items.map((dto) => User.fromDto(dto)), response.hasMore];
+  }
+
+  private isAuthTokenDto(value: unknown): value is AuthTokenDto {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    const token = value as Partial<AuthTokenDto>;
+    return (
+      typeof token.token === "string" && token.token.trim().length > 0 &&
+      typeof token.timestamp === "number" && Number.isFinite(token.timestamp) && token.timestamp >= 0
+    );
   }
 
   private isUserDto(value: unknown): value is UserDto {

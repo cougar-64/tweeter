@@ -1,4 +1,3 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-export class TweeterRequest {
-  public constructor(public readonly token: string) {}
-}
+// Common base for public requests and requests requiring an existing session.
+export class TweeterRequest {}
