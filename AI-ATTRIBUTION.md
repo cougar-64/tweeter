@@ -127,3 +127,8 @@
 - Tool: OpenAI Codex
 - Task: Prepare Register with Base64 image transport, shared authentication response handling, server validation/service/Lambda, and the SAM endpoint while preserving dummy registration behavior. Add offline and required facade integration tests, verify existing Login behavior, and document pending deployment; AWS change-set preparation awaits renewed CLI login.
 - Review: `LoginLambda.ts` now includes an authenticate function to authenticate new users (register). Register created for `ServerFacade.ts`, 
+
+## 2026-11-10: README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare, inspect, and execute the approved Register AWS change set after renewing CLI login. Verify the direct Lambda user/token DTOs, stable public success/validation and preflight responses, and all 58 live integration tests; update deployment documentation and milestone progress while leaving manual review to the user.
+- Review: Browser check shows register returns 200 status and Allen Anderson's profile (which is the default profile right now).

@@ -43,8 +43,8 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-Nine routes are deployed in this stack; `POST /user/register` is prepared locally.
-On 2026-11-09, all 51 live integration tests passed, covering facade and client
+All ten routes are deployed in this stack.
+On 2026-11-10, all 58 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
 and the count Lambdas returned valid FakeData counts. The following-status Lambda
@@ -57,6 +57,9 @@ errors, and CORS over three consecutive rounds before running the full suite.
 The Login Lambda returned Allen Anderson's DTO and a valid token DTO on direct
 invocation. Public Login success, validation errors, and OPTIONS/CORS passed
 three consecutive rounds before all 51 live integration tests passed.
+The Register Lambda returned Allen Anderson's DTO and a valid token DTO on
+direct invocation. Public registration success, validation errors, and
+OPTIONS/CORS passed three consecutive rounds before the full 58-test suite.
 
 The list handlers use
 `validatePagedUserItemRequest` to enforce the same paginated-user request
@@ -164,7 +167,7 @@ the network conversion; existing `toJson`/`fromJson` storage with `_token` and
 `tweeter-server/events/login.json`; requests and tokens are not logged by this
 implementation. Logout still uses a client placeholder.
 
-Register is prepared at `POST /user/register`. `RegisterRequest` contains
+Register is deployed at `POST /user/register`. `RegisterRequest` contains
 `firstName`, `lastName`, `alias`, `password`, `imageStringBase64`, and
 `imageFileExtension`. The client UserService encodes its Uint8Array image bytes
 as Base64 before calling the facade. It no longer accesses FakeData directly.
@@ -180,9 +183,8 @@ server service call. The facade's private `authenticate` helper shares response
 validation and User/AuthToken reconstruction while public login/register methods
 select their own endpoints. The sample payload is
 `tweeter-server/events/register.json`, containing dummy credentials and a small
-Base64 PNG. SAM artifacts are built locally; the AWS change set is not yet
-prepared because the CLI session expired. Run `aws login --profile default`
-before preparing it, and review the change set before execution.
+Base64 PNG. The reviewed change set was executed after renewing the AWS CLI
+login, and the stack update completed successfully.
 
 The default response template checks for Lambda's `errorMessage` field and uses
 `$context.responseOverride.status` to return HTTP 500 for unexpected errors.
@@ -348,7 +350,7 @@ nonempty token and numeric timestamp. Confirm the application signs in as Allen,
 then open another profile and check subsequent requests carry the returned
 token. This tests the request sequence, not real credential/token verification.
 
-After deploying Register, sign out, open the registration form, fill all fields
+For the Register browser check, sign out, open the registration form, fill all fields
 with dummy values, and choose an image. Filter Network for `user/register`.
 Confirm the POST contains the six registration fields, with the image as a
 Base64 string and no existing token. Expect HTTP 200 with `success: true`,
@@ -363,7 +365,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-After deploying Register, run all 58 live integration tests separately:
+Run all 58 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -375,12 +377,6 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
-
-Until Register is deployed, run the 51 tests for existing endpoints:
-
-```sh
-npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/Register.test.ts$'
-```
 
 To run only the list-feature integration tests:
 
@@ -413,8 +409,8 @@ against AWS. `test/server/FollowCountLambdas.test.ts` (renamed from
 `FollowerCountLambda.test.ts`) covers both count handlers with shared cases.
 The facade count tests also verify that each operation selects the correct URL
 and client service method, since random FakeData counts alone cannot distinguish
-the two operations. The assignment's register and client StatusService story
-integration tests will be added as those features are implemented.
+the two operations. The assignment's Register integration test now passes;
+the client StatusService story test remains for that feature's implementation.
 
 `FollowingStatus.test.ts` in the integration directory provides five passing checks
 against the deployed endpoint. The offline server and client following-status tests
@@ -449,7 +445,7 @@ domain reconstruction, and compatibility with existing token storage. Existing
 handler tests also ensure the request hierarchy change preserves required-token
 validation for authenticated operations.
 
-`Register.test.ts` adds seven pending live tests, including the assignment's
+`Register.test.ts` provides seven passing live tests, including the assignment's
 required Register ServerFacade integration test. They verify the exact dummy
 user/token result, Base64 image transport through the client service, token reuse
 with Get User, empty alias/missing image/malformed Base64 errors, and preflight
@@ -467,17 +463,16 @@ rounds, all 34 live tests passed without code changes.
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Nine deployed features; Register prepared as the tenth |
+| Move all service logic to the server | Ten deployed features; four features remain |
 | Shared request/response contracts | Registration request added; logout and post/status request contracts pending |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 9 deployed and verified by live tests; Register prepared as the tenth; Unfollow browser check pending |
-| Required Jest integration tests | Followers and follower count pass; Register tests written and await deployment; StatusService story pending |
+| Repeat for all 14 features | 10 deployed and verified by live tests; Register and Unfollow browser checks pending |
+| Required Jest integration tests | Register, Followers, and follower count facade tests pass; StatusService story pending |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and browser
-verified. Login is deployed and browser verified. Register is prepared locally;
-the other four remaining features are logout, feed, story, and post status.
-The offline suite has 226 passing tests; the deployed integration suite has 51
-passing tests. Seven Register live tests await deployment. AWS change-set
-preparation requires renewing the expired CLI login.
+verified. Login is deployed and browser verified. Register is deployed and passes
+all seven live checks; browser verification is pending. The four remaining
+features are logout, feed, story, and post status. The offline suite has 226
+passing tests; the deployed integration suite has 58 passing tests.
