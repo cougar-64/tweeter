@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 // validates JSON responses and reconstructs domain objects.
 import { AuthToken, isStatusDto, Status, User } from "tweeter-shared";
-import type { AuthenticatedRequest, AuthenticationResponse, AuthTokenDto, CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, LoginRequest, PagedStatusItemRequest, PagedStatusItemResponse, PagedUserItemRequest, PagedUserItemResponse, RegisterRequest, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
+import type { AuthenticatedRequest, AuthenticationResponse, AuthTokenDto, CountResponse, FollowingStatusRequest, FollowingStatusResponse, GetUserResponse, LoginRequest, PagedStatusItemRequest, PagedStatusItemResponse, PagedUserItemRequest, PagedUserItemResponse, PostStatusRequest, RegisterRequest, TweeterResponse, UserAliasRequest, UserDto } from "tweeter-shared";
 import { ClientCommunicator } from "./ClientCommunicator";
 
 export class ServerFacade {
@@ -88,27 +88,31 @@ export class ServerFacade {
   }
 
   public async follow(request: UserAliasRequest): Promise<void> {
-    return this.performUserAction(request, "/follow", "follow");
+    return this.performAction(request, "/follow", "Failed to follow user.");
   }
 
   public async unfollow(request: UserAliasRequest): Promise<void> {
-    return this.performUserAction(request, "/unfollow", "unfollow");
+    return this.performAction(request, "/unfollow", "Failed to unfollow user.");
   }
 
   public async logout(request: AuthenticatedRequest): Promise<void> {
-    return this.performUserAction(request, "/user/logout", "logout");
+    return this.performAction(request, "/user/logout", "Failed to logout user.");
   }
 
-  private async performUserAction(
+  public async postStatus(request: PostStatusRequest): Promise<void> {
+    return this.performAction(request, "/status/post", "Failed to post status.");
+  }
+
+  private async performAction(
     request: AuthenticatedRequest,
     endpoint: string,
-    action: string
+    failureMessage: string
   ): Promise<void> {
     const response = await this.clientCommunicator.doPost<AuthenticatedRequest, TweeterResponse>(
       request, endpoint
     );
     if (!response.success) {
-      throw new Error(response.message ?? `Failed to ${action} user.`);
+      throw new Error(response.message ?? failureMessage);
     }
   }
 

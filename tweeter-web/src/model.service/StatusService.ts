@@ -1,5 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import {AuthToken, PagedStatusItemRequest, Status} from "tweeter-shared";
+import {AuthToken, PagedStatusItemRequest, PostStatusRequest, Status} from "tweeter-shared";
 import {Service} from "./Service";
 import {ServerFacade} from "../net/ServerFacade";
 
@@ -28,7 +28,7 @@ export class StatusService implements Service {
         ));
     };
 
-    public async postStatus(authToken: AuthToken, status: Status) {
-        await new Promise((f) => setTimeout(f, 2000));
+    public async postStatus(authToken: AuthToken, status: Status): Promise<void> {
+        await this.serverFacade.postStatus(new PostStatusRequest(authToken.token, status.dto));
     }
 }

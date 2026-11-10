@@ -16,6 +16,7 @@ export { UserAliasRequest } from "./model/net/request/UserAliasRequest";
 export { FollowingStatusRequest } from "./model/net/request/FollowingStatusRequest";
 export { PagedUserItemRequest } from "./model/net/request/PagedUserItemRequest";
 export { PagedStatusItemRequest } from "./model/net/request/PagedStatusItemRequest";
+export { PostStatusRequest } from "./model/net/request/PostStatusRequest";
 export { TweeterResponse } from "./model/net/response/TweeterResponse";
 export { AuthenticationResponse } from "./model/net/response/AuthenticationResponse";
 export { GetUserResponse } from "./model/net/response/GetUserResponse";

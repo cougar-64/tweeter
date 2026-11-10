@@ -27,11 +27,11 @@ Run the project by running 'npm start' from within the 'tweeter-web' folder.
 
 ## Tweeter Backend with AWS SAM
 
-The root `template.yaml` describes follow, user-management, story, and feed Lambdas and a REST API
+The root `template.yaml` describes all fourteen feature Lambdas and a REST API
 with `POST /followers/list`, `POST /followees/list`, `POST /followers/count`,
 `POST /followees/count`, `POST /follow/status`, `POST /follow`, `POST /unfollow`,
 `POST /user/get`, `POST /user/login`, `POST /user/register`, `POST /user/logout`,
-`POST /story/list`, and `POST /feed/list`.
+`POST /story/list`, `POST /feed/list`, and `POST /status/post`.
 Each handler receives the JSON request directly through a
 non-proxy integration. API Gateway returns HTTP 200 for success, 400 for errors
 starting with `[Bad Request]`, and 500 for other Lambda errors. CORS is configured
@@ -44,7 +44,7 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-All thirteen routes are deployed in this stack.
+Thirteen routes are deployed in this stack; `POST /status/post` is prepared locally.
 On 2026-11-10, all 74 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
@@ -143,7 +143,7 @@ Unfollow is deployed at `POST /unfollow`. It uses the same `UserAliasRequest`
 and `TweeterResponse` contract as Follow. `UnfollowLambda` extends
 `UserActionLambda` and calls the server's `unfollow` method. Its two-second
 placeholder operation now runs on the server, with no relationship persistence.
-The client facade's `performUserAction` helper shares POST and failure handling
+The client facade's `performAction` helper shares POST and failure handling
 between Follow and Unfollow, while each public method chooses its own endpoint.
 The existing presenter reloads counts and the component changes the button to
 Follow on success. The sample payload is `tweeter-server/events/unfollow.json`.
@@ -203,7 +203,7 @@ containing only `token`, `validateAuthenticatedRequest`, and `TweeterResponse`.
 No new shared contract is needed. `LogoutLambda` validates the request, awaits
 the server's one-second simulated `UserService.logout`, then returns success.
 The server does not invalidate a stored session in Milestone 3.
-The facade reuses `performUserAction`, which now accepts the common authenticated
+The facade reuses `performAction`, which accepts the common authenticated
 request type; Follow and Unfollow still send their target aliases. The existing
 LogoutPresenter waits for the service before clearing user information and
 navigating to Login, and reports errors when the call fails. All methods in the
@@ -225,7 +225,7 @@ reconstructs each Status and its author through `Status.fromDto`. The Status
 constructor regenerates mention/URL/newline segments, so clickable links and
 `equals` continue to work. Existing status storage JSON remains unchanged.
 The client StatusService now accepts an optional facade for testing and delegates
-Story; Post Status retains its placeholder. The sample payload is
+Story. The sample payload is
 `tweeter-server/events/get-story.json`.
 
 Feed is deployed at `POST /feed/list`. It reuses the status DTOs, paged request/
@@ -240,6 +240,24 @@ Feed preserves the same shared list of 44 dummy statuses as Story; it is not
 yet restricted to posts from followees. Separate service methods allow that
 filtering to be added with real storage. The sample payload is
 `tweeter-server/events/get-feed.json`.
+
+Post Status is prepared at `POST /status/post`. `PostStatusRequest` extends
+`AuthenticatedRequest` with a nested `StatusDto`. The client StatusService sends
+the domain status's DTO, preserving post text, author, and timestamp without
+serialized display segments. `validatePostStatusRequest` requires a nonempty
+token, a valid nested status DTO, and nonblank post text. It checks the DTO's
+shape; it does not verify token ownership of the author in this milestone.
+
+`PostStatusLambda` reconstructs the Status and User, awaits the server's
+`postStatus`, and returns a base `TweeterResponse`. The two-second simulated
+operation now runs on the server; posts are not persisted or added to Feed/Story.
+The facade reuses `performAction` for Follow, Unfollow, Logout, and Post Status.
+It accepts a complete fallback error message, preserving the older operations'
+messages. The existing PostPresenter clears input and shows success after the
+service completes; failed requests preserve the input and display an error.
+All fourteen client service operations now call the API, with no client service
+FakeData access or placeholder delays. The payload is
+`tweeter-server/events/post-status.json`.
 
 The default response template checks for Lambda's `errorMessage` field and uses
 `$context.responseOverride.status` to return HTTP 500 for unexpected errors.
@@ -281,6 +299,7 @@ The Register artifact is `.aws-sam/build/RegisterFunction/RegisterLambda.js`.
 The Logout artifact is `.aws-sam/build/LogoutFunction/LogoutLambda.js`.
 The Story artifact is `.aws-sam/build/GetStoryFunction/GetStoryLambda.js`.
 The Feed artifact is `.aws-sam/build/GetFeedFunction/GetFeedLambda.js`.
+The Post Status artifact is `.aws-sam/build/PostStatusFunction/PostStatusLambda.js`.
 
 To invoke the built handler directly with Node, without Docker or AWS:
 
@@ -438,6 +457,13 @@ DTO passed as the next request's cursor. At page size ten, expect pages of
 10, 10, 10, 10, and 4 items and then `hasMore: false`. Check author names,
 timestamps, mentions, and links render. The dummy posts currently match Story.
 
+After deploying Post Status, sign in, filter Network for `status/post`, enter a
+message with a mention or URL, and click Post. Confirm the request contains the
+token and status DTO, including author and timestamp, and returns HTTP 200 with
+`success: true` and `message: null`. The field should clear and the success toast
+should appear. The dummy post will not appear in Feed or Story. A whitespace-only
+post should return HTTP 400 and leave the input intact.
+
 ## Running Tests
 
 Run the offline component, presenter, facade-validation, and Lambda handler tests from the repository root:
@@ -446,7 +472,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-Run all 74 live integration tests separately:
+After deploying Post Status, run all 80 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -458,6 +484,12 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
+
+Until Post Status is deployed, run the 74 tests for existing endpoints:
+
+```sh
+npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/PostStatus.test.ts$'
+```
 
 To run only the list-feature integration tests:
 
@@ -558,6 +590,14 @@ features, verifying separate service/endpoint routing as well as shared DTO,
 cursor, empty-page, and failure handling. The packaged Feed Lambda was also
 checked in isolation through all five pages and the final empty page.
 
+`PostStatus.test.ts` adds six pending live checks: facade and client service
+success, empty token/blank post/malformed author errors with HTTP 400 and CORS,
+and preflight. Offline tests verify status/author reconstruction, waiting for
+server completion, rejection before service calls, failure propagation, and DTO
+serialization. Existing PostPresenter tests verify input clearing on success
+and preservation on failure. An isolated packaged-handler check also verifies
+successful simulated posting and invalid token/post/author rejection.
+
 During Follow deployment, the first live test run received intermittent API
 Gateway `Missing Authentication Token` responses even after one successful
 request. Once success and validation responses were stable for three consecutive
@@ -568,18 +608,18 @@ rounds, all 34 live tests passed without code changes.
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | Thirteen deployed features; Post Status remains |
-| Shared request/response contracts | Status DTO and paging contracts added; Post Status request pending |
+| Move all service logic to the server | All fourteen implemented locally; thirteen deployed; Post Status prepared |
+| Shared request/response contracts | Complete for all fourteen features |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 13 deployed and verified by live tests; Feed and Unfollow browser checks pending |
+| Repeat for all 14 features | 13 deployed and verified by live tests; Post Status prepared as the final feature; Unfollow browser check pending |
 | Required Jest integration tests | Register, Followers, count facade tests and StatusService story test all pass against AWS |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and browser
 verified. Login, Register, Logout, and Story are deployed and browser verified.
-Feed is deployed and passes all five live checks; browser verification is pending.
-Post Status is the last feature remaining. The offline suite has 309 passing
-tests; the deployed integration suite has 74 passing tests. All required
+Feed is deployed and browser verified. Post Status is prepared locally as the
+last feature. The offline suite has 331 passing tests; the deployed integration
+suite has 74 passing tests. Six Post Status live tests await deployment. All required
 Milestone 3 integration tests now pass. Documentation, API export,
 and passoff work remain after the features are completed.

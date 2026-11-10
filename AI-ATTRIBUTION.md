@@ -162,3 +162,8 @@
 - Tool: OpenAI Codex
 - Task: Execute the approved Feed AWS change set and verify the direct Lambda first page, stable public success/validation and preflight responses, and all 74 live integration tests. Confirm complete Feed pagination and existing Story behavior, and update deployment documentation and milestone progress while leaving browser verification to the user.
 - Review: Browser check shows response status 200 and the correct amount of posts (feed) displayed.
+
+## 2026-11-10: tweeter-shared/src/model/net/request/PostStatusRequest.ts (new file), tweeter-shared/src/index.ts, tweeter-server/src/lambda/validation/validatePostStatusRequest.ts (new file), tweeter-server/src/lambda/status/PostStatusLambda.ts (new file), tweeter-server/src/model/service/StatusService.ts, tweeter-server/events/post-status.json (new file), tweeter-web/src/model.service/StatusService.ts, tweeter-web/src/net/ServerFacade.ts, tweeter-web/test/server/PostStatusLambda.test.ts (new file), tweeter-web/test/net/PostStatus.test.ts (new file), tweeter-web/test/integration/PostStatus.test.ts (new file), Makefile, template.yaml, README.md, AI-ATTRIBUTION.md
+- Tool: OpenAI Codex
+- Task: Prepare Post Status through a shared token/status request, server validation/service/Lambda, SAM endpoint, and client service/facade while preserving simulated posting. Share action response handling without changing existing errors, test DTO transport and completion/failure behavior, add pending live tests, and update documentation and the final-feature checklist.
+- Review: Posting a status is deployed through server facade as well as both status services (web and server). Lambda ready for upload
