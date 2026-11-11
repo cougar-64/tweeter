@@ -44,8 +44,8 @@ Its deployed API base URL is:
 https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-Thirteen routes are deployed in this stack; `POST /status/post` is prepared locally.
-On 2026-11-10, all 74 live integration tests passed, covering facade and client
+All fourteen routes are deployed in this stack.
+On 2026-11-10, all 80 live integration tests passed, covering facade and client
 service calls, reconstructed User instances, pagination, validation errors, and
 CORS. The list Lambdas returned the expected first page when invoked directly,
 and the count Lambdas returned valid FakeData counts. The following-status Lambda
@@ -72,6 +72,9 @@ The Feed Lambda returned ten status DTOs and the expected first post on direct
 invocation. Public Feed first-page, validation-error, and OPTIONS/CORS checks
 passed three consecutive rounds before the full 74-test suite verified complete
 Feed pagination and the existing Story behavior.
+The Post Status Lambda returned `success: true` and `message: null` on direct
+invocation. Public posting success, invalid-token and blank-post errors, and
+OPTIONS/CORS passed three consecutive rounds before all 80 live tests passed.
 
 The list handlers use
 `validatePagedUserItemRequest` to enforce the same paginated-user request
@@ -241,7 +244,7 @@ yet restricted to posts from followees. Separate service methods allow that
 filtering to be added with real storage. The sample payload is
 `tweeter-server/events/get-feed.json`.
 
-Post Status is prepared at `POST /status/post`. `PostStatusRequest` extends
+Post Status is deployed at `POST /status/post`. `PostStatusRequest` extends
 `AuthenticatedRequest` with a nested `StatusDto`. The client StatusService sends
 the domain status's DTO, preserving post text, author, and timestamp without
 serialized display segments. `validatePostStatusRequest` requires a nonempty
@@ -457,7 +460,7 @@ DTO passed as the next request's cursor. At page size ten, expect pages of
 10, 10, 10, 10, and 4 items and then `hasMore: false`. Check author names,
 timestamps, mentions, and links render. The dummy posts currently match Story.
 
-After deploying Post Status, sign in, filter Network for `status/post`, enter a
+For the Post Status browser check, sign in, filter Network for `status/post`, enter a
 message with a mention or URL, and click Post. Confirm the request contains the
 token and status DTO, including author and timestamp, and returns HTTP 200 with
 `success: true` and `message: null`. The field should clear and the success toast
@@ -472,7 +475,7 @@ Run the offline component, presenter, facade-validation, and Lambda handler test
 npm test --workspace tweeter-web -- --runInBand
 ```
 
-After deploying Post Status, run all 80 live integration tests separately:
+Run all 80 live integration tests separately:
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -484,12 +487,6 @@ HTTP 400 validation errors, and CORS response headers, including OPTIONS
 preflight and an unknown route. They do not emulate a browser enforcing CORS.
 The first-page HTTP 200 assertion also guards against the response-mapping
 regression found during deployment. No server failure is deliberately injected.
-
-Until Post Status is deployed, run the 74 tests for existing endpoints:
-
-```sh
-npm run test:integration --workspace tweeter-web -- --testPathIgnorePatterns='/integration/PostStatus.test.ts$'
-```
 
 To run only the list-feature integration tests:
 
@@ -590,7 +587,7 @@ features, verifying separate service/endpoint routing as well as shared DTO,
 cursor, empty-page, and failure handling. The packaged Feed Lambda was also
 checked in isolation through all five pages and the final empty page.
 
-`PostStatus.test.ts` adds six pending live checks: facade and client service
+`PostStatus.test.ts` provides six passing live checks: facade and client service
 success, empty token/blank post/malformed author errors with HTTP 400 and CORS,
 and preflight. Offline tests verify status/author reconstruction, waiting for
 server completion, rejection before service calls, failure propagation, and DTO
@@ -608,18 +605,19 @@ rounds, all 34 live tests passed without code changes.
 | Plan item | Status |
 | --- | --- |
 | Server module with shared dependency | Complete |
-| Move all service logic to the server | All fourteen implemented locally; thirteen deployed; Post Status prepared |
+| Move all service logic to the server | Complete; all fourteen operations use server APIs |
 | Shared request/response contracts | Complete for all fourteen features |
 | First complete feature through all layers | Followers complete, including browser verification |
-| Repeat for all 14 features | 13 deployed and verified by live tests; Post Status prepared as the final feature; Unfollow browser check pending |
+| Repeat for all 14 features | All 14 deployed and verified by live tests; Post Status and Unfollow browser checks pending |
 | Required Jest integration tests | Register, Followers, count facade tests and StatusService story test all pass against AWS |
 | Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and browser
 verified. Login, Register, Logout, and Story are deployed and browser verified.
-Feed is deployed and browser verified. Post Status is prepared locally as the
-last feature. The offline suite has 331 passing tests; the deployed integration
-suite has 74 passing tests. Six Post Status live tests await deployment. All required
+Feed is deployed and browser verified. Post Status is deployed and passes all
+six live checks; browser verification is pending. All fourteen features are now
+implemented and deployed. The offline suite has 331 passing tests; the deployed
+integration suite has 80 passing tests. All required
 Milestone 3 integration tests now pass. Documentation, API export,
-and passoff work remain after the features are completed.
+and passoff work remain, along with the final manual browser review.
