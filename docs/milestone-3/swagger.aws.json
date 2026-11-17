@@ -1,0 +1,1609 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "version" : "1.0",
+    "title" : "Tweeter API"
+  },
+  "host" : "s58iqa332m.execute-api.us-east-1.amazonaws.com",
+  "basePath" : "/dev",
+  "schemes" : [ "https" ],
+  "paths" : {
+    "/feed/list" : {
+      "post" : {
+        "summary" : "Get a page of feed statuses",
+        "description" : "Returns a page from the shared dummy status list using the supplied page size and optional status cursor. Followee-based filtering comes with real storage.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A page of status DTOs with nested user DTOs and a hasMore flag.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token, alias, page size, or last-item cursor is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-GetFeedFunction-adAMX0bLx0gU/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/follow" : {
+      "post" : {
+        "summary" : "Follow a user",
+        "description" : "Simulates following the supplied user alias using the authentication token. Does not persist a relationship in Milestone 3.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag and optional message after the simulated operation completes.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token or target user alias is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-FollowFunction-tCYtSVdbKKNb/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/follow/status" : {
+      "post" : {
+        "summary" : "Check whether one user follows another",
+        "description" : "Returns the dummy following status for the supplied follower and followee aliases.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag and boolean isFollower result.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token or either user alias is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-GetFollowingStatusFunction-tOGEw6qmaY54/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/followees/count" : {
+      "post" : {
+        "summary" : "Get a user's followee count",
+        "description" : "Returns the dummy followee count for the supplied user alias.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag and followee count.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token or user alias is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-GetFolloweeCountFunction-BUcuG8KBmpnn/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/followees/list" : {
+      "post" : {
+        "summary" : "Get a page of followees",
+        "description" : "Returns dummy followees for the supplied user alias, page size, and optional last user.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A page of user DTOs and a hasMore flag.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The request is missing required fields or contains invalid values.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-GetFolloweesFunction-g8wN7yuAmnA4/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/followers/count" : {
+      "post" : {
+        "summary" : "Get a user's follower count",
+        "description" : "Returns the dummy follower count for the supplied user alias.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag and follower count.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token or user alias is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-GetFollowerCountFunction-zNhFLadXixZC/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/followers/list" : {
+      "post" : {
+        "summary" : "Get a page of followers",
+        "description" : "Returns dummy followers for the supplied user alias, page size, and optional last user.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A page of user DTOs and a hasMore flag.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The request is missing required fields or contains invalid values.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-GetFollowersFunction-AW5JpFIweZc8/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/status/post" : {
+      "post" : {
+        "summary" : "Post a status",
+        "description" : "Validates the supplied token and status DTO, then simulates posting. Does not persist the status or update feeds in Milestone 3.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag and optional message after simulated posting completes.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token or status DTO is missing or invalid, or the post is blank.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-PostStatusFunction-xeG41WigoB2X/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/story/list" : {
+      "post" : {
+        "summary" : "Get a page of story statuses",
+        "description" : "Returns a page from the shared dummy status list using the supplied page size and optional status cursor. Alias filtering comes with real storage.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A page of status DTOs with nested user DTOs and a hasMore flag.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token, alias, page size, or last-item cursor is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-GetStoryFunction-z8wG80gytjHt/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/unfollow" : {
+      "post" : {
+        "summary" : "Unfollow a user",
+        "description" : "Simulates unfollowing the supplied user alias using the authentication token. Does not persist a relationship in Milestone 3.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag and optional message after the simulated operation completes.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token or target user alias is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-UnfollowFunction-WcA2LSmH8t1t/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/user/get" : {
+      "post" : {
+        "summary" : "Get a user by alias",
+        "description" : "Looks up a dummy user by alias and returns the user DTO or null when no user exists.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag and a user DTO, or null if the alias was not found.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token or user alias is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-GetUserFunction-wYO8xYgxzA2Q/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/user/login" : {
+      "post" : {
+        "summary" : "Log in a user",
+        "description" : "Returns the first dummy user and a dummy authentication token for nonempty credentials. Does not verify real credentials in Milestone 3.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag, user DTO, and authentication token DTO.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The alias or password is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-LoginFunction-ZaLKGlJQ1ZPo/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/user/logout" : {
+      "post" : {
+        "summary" : "Log out a user",
+        "description" : "Validates the supplied token and simulates logout. Does not invalidate a stored session in Milestone 3.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag and optional message after the simulated logout completes.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "The token is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-LogoutFunction-8yWheeuhL1aX/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    },
+    "/user/register" : {
+      "post" : {
+        "summary" : "Register a user",
+        "description" : "Validates registration fields and a Base64 image, then returns the first dummy user and a dummy token. Does not store a user or image in Milestone 3.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "A success flag, user DTO, and authentication token DTO.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "400" : {
+            "description" : "A required registration field is missing or invalid.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          },
+          "500" : {
+            "description" : "An unexpected server error occurred.",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "uri" : "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:209147851143:function:tweeter-m3-RegisterFunction-ZcFOyJSeB3dB/invocations",
+          "httpMethod" : "POST",
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "#set($result = $input.path('$'))\n#if($result.containsKey(\"errorMessage\"))\n#set($context.responseOverride.status = 500)\n{\"errorMessage\": \"An unexpected server error occurred.\"}\n#else\n$input.json(\"$\")\n#end\n"
+              }
+            },
+            "(?s)^(?!\\[Bad Request\\]).+" : {
+              "statusCode" : "500",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": \"An unexpected server error occurred.\"}\n"
+              }
+            },
+            "(?s)^\\[Bad Request\\].*" : {
+              "statusCode" : "400",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{\"errorMessage\": $input.json('$.errorMessage')}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "$input.json(\"$\")"
+          },
+          "passthroughBehavior" : "never",
+          "type" : "aws"
+        }
+      },
+      "options" : {
+        "summary" : "CORS support",
+        "description" : "Answers browser CORS preflight requests for this resource, allowing POST requests with the Content-Type header.",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Default response for CORS method",
+            "headers" : {
+              "Access-Control-Allow-Origin" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Methods" : {
+                "type" : "string"
+              },
+              "Access-Control-Allow-Headers" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "responses" : {
+            "default" : {
+              "statusCode" : "200",
+              "responseParameters" : {
+                "method.response.header.Access-Control-Allow-Methods" : "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers" : "'Content-Type'",
+                "method.response.header.Access-Control-Allow-Origin" : "'*'"
+              },
+              "responseTemplates" : {
+                "application/json" : "{}\n"
+              }
+            }
+          },
+          "requestTemplates" : {
+            "application/json" : "{\n  \"statusCode\" : 200\n}\n"
+          },
+          "passthroughBehavior" : "when_no_match",
+          "type" : "mock"
+        }
+      }
+    }
+  },
+  "x-amazon-apigateway-security-policy" : "TLS_1_0"
+}

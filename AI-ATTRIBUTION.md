@@ -172,3 +172,28 @@
 - Tool: OpenAI Codex
 - Task: Execute the approved final Post Status AWS change set and verify the direct Lambda response, stable public success/validation and preflight responses, and all 80 live integration tests across fourteen features. Update deployment documentation and milestone progress while leaving final browser review, submission documents, API export, and passoff preparation outstanding.
 - Review: Browser check shows 200 OK status and success toast deleting. Everything looks good. 
+
+## 2026-11-17: Milestone 3 submission documents
+- Tool: OpenAI Codex
+- Task: Trace the current status-posting implementation and create a UML sequence diagram PDF, SVG preview, editable PlantUML, and a reproducible renderer. Include the client/server StatusService objects, API Gateway JSON bridge, promise completion, and the listener's success message.
+- Task: Prepare a reproducible project ZIP using current versionable files; extract a clearly labeled local Swagger reference from the SAM template; document the remaining stage export and documentation publication steps.
+- Findings: All fourteen source POST methods have descriptions and declare 200/400/500 method responses. HTTP 500 uses a response-template override rather than a separate 500 integration response; this was flagged for rubric review. The AWS stage export could not be completed because the AWS login session expired. No AWS configuration was changed.
+- Validation: Compared diagram calls with PostStatus, PostPresenter, both StatusService implementations, ServerFacade, ClientCommunicator, PostStatusLambda, validation helpers, and the SAM integration. Checked the rendered diagram, source endpoint coverage, and ZIP integrity. Application code was not changed by this documentation task.
+- Review: Generated documents look good! Sequence diagram is correct and thorough, and readme correctly instructs how to see milestone 3 completion.
+
+## 2026-11-17: Published API documentation and stage export
+- Tool: OpenAI Codex
+- Task: After the student renewed AWS authentication, export the deployed dev-stage API, inspect its documentation, complete documentation publication, and rebuild the submission ZIP.
+- Changes: Retained the existing fourteen POST method descriptions, added descriptions to the fourteen CORS OPTIONS methods, and published documentation version `m3-docs-20261117` to `dev`. Exported the actual stage as `docs/milestone-3/swagger.aws.json` with integration extensions. Updated the submission checklist and packager validation. Consulted the official AWS documentation-import reference to prepare the documentation-only merge.
+- Validation: Confirmed the stage's documentation version, descriptions and integration extensions for all fourteen POST and fourteen OPTIONS methods, and declared 200/400/500 POST method responses in the exported file. The runtime deployment remained `m0wxqb`. Rebuilt and verified the current project archive. No runtime integrations or application code were changed; endpoint tests were not rerun.
+- Remaining issue: The actual deployed export confirms that HTTP 500 is produced through the default response-template override; a separate 500 integration response is absent. This remains flagged against the rubric.
+- Review: Artifacts look good, now need to do the HTTP 500 response.
+
+## 2026-11-17: Explicit HTTP 500 integration responses
+- Tool: OpenAI Codex
+- Task: Add and deploy a separate HTTP 500 integration response for every application POST endpoint, verify existing behavior, and refresh the submission artifacts.
+- Changes: Added the selection pattern `(?s)^(?!\[Bad Request\]).+` to all fourteen POST integrations in `template.yaml`. It matches nonempty unexpected errors, including multiline messages, and excludes the validation prefix handled by HTTP 400. Each 500 response returns a generic JSON error and CORS. Retained the default-template override as a fallback. Updated submission validation, both READMEs, and the exported Swagger file.
+- Deployment: Retrieved the original deployed CloudFormation template and reused its existing Lambda artifact locations. Verified that the proposed template changed only the fourteen integration responses. Reviewed and executed change set `m3-explicit500-20261117`, whose resource changes were limited to the REST API, stage, and API deployment. The stack reached UPDATE_COMPLETE, and dev now uses deployment `iv9v59` with documentation version `m3-docs-20261117` retained. No Lambda or IAM changes were made.
+- Validation: `sam validate --lint --template-file template.yaml` passed. Local selection-rule checks covered empty, validation, unexpected, and multiline messages without overlapping 400/500 matches. All 80 live integration tests across 15 suites passed after deployment. The actual refreshed stage export contains all fourteen explicit 200/400/500 integration response sets and all twenty-eight method descriptions. Rebuilt and verified the project ZIP. A server failure was not deliberately injected into deployed Lambdas; the 500 checks verified configuration and selection rules.
+- Sources: Consulted the official AWS Lambda error handling documentation: https://docs.aws.amazon.com/apigateway/latest/developerguide/handle-errors-in-lambda-integration.html
+- Review: HTTP 500 response implemented. Milestone 3 complete.

@@ -1,0 +1,45 @@
+@startuml
+title Successful status submission — Tweeter Milestone 3
+hide footbox
+autonumber
+participant "postStatus\n: PostStatus component" as component
+participant "presenter\n: PostPresenter" as presenter
+participant "listener\n: PostView (component)" as listener
+participant "clientService\n: StatusService (client)" as client
+participant "facade\n: ServerFacade" as facade
+participant "communicator\n: ClientCommunicator" as communicator
+participant "gateway\n: AWS API Gateway" as gateway
+participant "postStatusLambda\n: PostStatusLambda module" as lambda
+participant "serverService\n: StatusService (server)" as server
+note over component,communicator: Client async methods return promises; await suspends the caller while the event loop remains available.
+[-> component: submitPost(event)
+component -> presenter: submitPost(post,\ncurrentUser, authToken)
+presenter -> listener: setIsLoading(true)
+presenter -> listener: displayInfoMessage(\n"Posting status...", 0)
+presenter -> presenter: new Status(post, currentUser,\nDate.now())
+presenter -> presenter: post(authToken, status)
+presenter -> client: postStatus(authToken, status)
+client -> client: new PostStatusRequest(\nauthToken.token, status.dto)
+client -> facade: postStatus(request)
+facade -> facade: performAction(request,\n"/status/post", failureMessage)
+facade -> communicator: doPost(request,\n"/status/post")
+communicator -> communicator: JSON.stringify(request)
+communicator ->> gateway: fetch: POST /dev/status/post\nJSON {token, status}
+gateway -> lambda: handler(request)\nJSON body mapped to event
+lambda -> lambda: validatePostStatusRequest(request)\nvalid token shape + nonblank post
+lambda -> lambda: Status.fromDto(request.status)
+lambda -> server: postStatus(request.token, status)
+server -> server: await new Promise(\nsetTimeout(resolve, 2000))
+server --> lambda: Promise<void> completes
+lambda --> gateway: new TweeterResponse(true)\n{success: true, message: null}
+gateway --> communicator: HTTP 200 + JSON body\nintegration response mapping
+communicator -> communicator: await response.json()\ncheck HTTP + common fields
+communicator --> facade: TweeterResponse
+facade -> facade: check response.success
+facade --> client: Promise<void> completes
+client --> presenter: await post(...) completes
+presenter -> listener: setPost("")
+presenter -> listener: displayInfoMessage(\n"Status posted!", 2000)
+note over gateway,server: Custom non-proxy integration bridges HTTP JSON and the Lambda event/response.\nServer posting is simulated; no persistence or feed updates.
+note over presenter,listener: After the displayed endpoint, finally deletes the posting toast and calls setIsLoading(false).
+@enduml

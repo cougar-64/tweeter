@@ -31,3 +31,7 @@ samconfig.toml
 # Keep shared Git mapping; ignore personal IDE settings.
 .idea/*
 !.idea/vcs.xml
+
+# Generated submission archives and Python caches
+submission/
+__pycache__/

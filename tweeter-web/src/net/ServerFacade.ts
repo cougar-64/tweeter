@@ -21,7 +21,7 @@ export class ServerFacade {
     return this.authenticate(request, "/user/register", "register");
   }
 
-  private async authenticate(
+  private async authenticate( // for login/register
     request: LoginRequest | RegisterRequest,
     endpoint: string,
     action: string
@@ -38,7 +38,7 @@ export class ServerFacade {
     return [User.fromDto(response.user), AuthToken.fromDto(response.authToken)];
   }
 
-  public async getUser(request: UserAliasRequest): Promise<User | null> {
+  public async getUser(request: UserAliasRequest): Promise<User | null> { // gets a user
     const response = await this.clientCommunicator.doPost<UserAliasRequest, GetUserResponse>(
       request, "/user/get"
     );
@@ -62,7 +62,7 @@ export class ServerFacade {
     return this.getPagedStatuses(request, "/feed/list", "feed");
   }
 
-  private async getPagedStatuses(
+  private async getPagedStatuses( // story and feed
     request: PagedStatusItemRequest,
     endpoint: string,
     itemDescription: string
@@ -103,7 +103,7 @@ export class ServerFacade {
     return this.performAction(request, "/status/post", "Failed to post status.");
   }
 
-  private async performAction(
+  private async performAction( // follow, unfollow, logout, post status
     request: AuthenticatedRequest,
     endpoint: string,
     failureMessage: string
@@ -116,7 +116,7 @@ export class ServerFacade {
     }
   }
 
-  public async getIsFollowerStatus(request: FollowingStatusRequest): Promise<boolean> {
+  public async getIsFollowerStatus(request: FollowingStatusRequest): Promise<boolean> { // boolean
     const response = await this.clientCommunicator.doPost<FollowingStatusRequest, FollowingStatusResponse>(
       request, "/follow/status"
     );
@@ -137,7 +137,7 @@ export class ServerFacade {
     return this.getCount(request, "/followees/count", "followee");
   }
 
-  private async getCount(
+  private async getCount( // follower and followee counts
     request: UserAliasRequest,
     endpoint: string,
     itemDescription: string
@@ -154,7 +154,7 @@ export class ServerFacade {
     return response.count;
   }
 
-  private async getPagedUsers(
+  private async getPagedUsers( // followers and followees
     request: PagedUserItemRequest,
     endpoint: string,
     itemDescription: string

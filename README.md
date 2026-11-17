@@ -262,9 +262,15 @@ All fourteen client service operations now call the API, with no client service
 FakeData access or placeholder delays. The payload is
 `tweeter-server/events/post-status.json`.
 
-The default response template checks for Lambda's `errorMessage` field and uses
-`$context.responseOverride.status` to return HTTP 500 for unexpected errors.
-This avoids a broad error regex also selecting successful responses.
+Every POST integration defines explicit 200, 400, and 500 responses. The 500
+selection pattern `(?s)^(?!\[Bad Request\]).+` matches nonempty unexpected Lambda
+errors, including multiline messages, while excluding the validation-error
+prefix handled by the 400 response. The nonempty match preserves successful
+default responses. The 500 mapping returns a generic error message and CORS.
+[AWS documents Lambda error selection patterns here](https://docs.aws.amazon.com/apigateway/latest/developerguide/handle-errors-in-lambda-integration.html).
+The default response template also checks for Lambda's `errorMessage` field and
+uses `$context.responseOverride.status` as a fallback for unexpected errors
+without a matching nonempty message.
 [AWS documents response status overrides here](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-override-request-response-parameters.html).
 Unexpected-error handling is configured; a server failure has not been
 deliberately injected into the deployed Lambda.
@@ -610,7 +616,7 @@ rounds, all 34 live tests passed without code changes.
 | First complete feature through all layers | Followers complete, including browser verification |
 | Repeat for all 14 features | All 14 deployed and verified by live tests; Post Status and Unfollow browser checks pending |
 | Required Jest integration tests | Register, Followers, count facade tests and StatusService story test all pass against AWS |
-| Documentation and passoff | README and AI attribution maintained; submission documents and passoff pending |
+| Documentation and passoff | Submission PDF, project ZIP, and published Swagger export prepared; explicit 200/400/500 integration responses configured; passoff pending |
 
 Follow is deployed and browser verified. Unfollow is deployed and passes its five
 live checks; browser verification is pending. Get User is deployed and browser
@@ -619,5 +625,6 @@ Feed is deployed and browser verified. Post Status is deployed and passes all
 six live checks; browser verification is pending. All fourteen features are now
 implemented and deployed. The offline suite has 331 passing tests; the deployed
 integration suite has 80 passing tests. All required
-Milestone 3 integration tests now pass. Documentation, API export,
-and passoff work remain, along with the final manual browser review.
+Milestone 3 integration tests now pass. Submission documents and the published
+API export are available in [docs/milestone-3](docs/milestone-3/README.md).
+Passoff work and the final manual browser review remain.
