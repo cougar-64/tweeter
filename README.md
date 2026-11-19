@@ -633,10 +633,21 @@ Passoff work and the final manual browser review remain.
 
 The database-agnostic contracts are in `tweeter-server/src/model/dao`.
 `DAOFactory` supplies user, session, follow, story, feed, and image DAOs to
-services. Concrete AWS implementations and service wiring will be added one
-feature at a time, starting with registration, login, and logout. The existing
+services. `model/dao/dynamodb/DynamoDBUserDAO.ts` implements user creation and
+lookup using an injected document client and table name. Other concrete AWS
+implementations and service wiring will be added one feature at a time,
+starting with registration, login, and logout. The existing
 Milestone 3 endpoints still use FakeData; these declarations do not yet replace
 their behavior. No Milestone 4A resources have been deployed.
+
+The user DAO stores profile fields, a service-supplied password hash, and initial
+zero follow counts in a flat item keyed by alias. Conditional creation returns
+false if the alias exists, preserving existing data; other database errors
+propagate. Strongly consistent lookups return a separate profile DTO, hash, and
+counts, or null for a missing alias. Invalid stored records are rejected.
+Hashing and credential checks belong to the upcoming authentication services.
+The isolated DAO tests mock the AWS client and do not contact DynamoDB:
+`npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBUserDAO.test.ts`.
 
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
