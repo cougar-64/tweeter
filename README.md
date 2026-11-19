@@ -634,7 +634,9 @@ Passoff work and the final manual browser review remain.
 The database-agnostic contracts are in `tweeter-server/src/model/dao`.
 `DAOFactory` supplies user, session, follow, story, feed, and image DAOs to
 services. `model/dao/dynamodb/DynamoDBUserDAO.ts` implements user creation and
-lookup using an injected document client and table name. Other concrete AWS
+lookup using an injected document client and table name.
+`model/dao/dynamodb/DynamoDBSessionDAO.ts` implements session persistence and
+activity refresh with the same injection approach. Other concrete AWS
 implementations and service wiring will be added one feature at a time,
 starting with registration, login, and logout. The existing
 Milestone 3 endpoints still use FakeData; these declarations do not yet replace
@@ -648,6 +650,19 @@ counts, or null for a missing alias. Invalid stored records are rejected.
 Hashing and credential checks belong to the upcoming authentication services.
 The isolated DAO tests mock the AWS client and do not contact DynamoDB:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBUserDAO.test.ts`.
+
+The session DAO conditionally creates a record without replacing an existing
+token digest. Refresh uses a strongly consistent read, rejects missing or
+expired sessions, and conditionally updates the activity and expiration against
+the values read. Concurrent modifications cause a re-read, with at most three
+update attempts before an error. Both times remain monotonic; activity already
+covered by the stored timestamps needs no write. Unconditional, idempotent
+deletion supports logout, while refresh's existence condition prevents deleted
+records from being recreated. All times are whole Unix seconds. The configured
+30-minute duration will be supplied by the authorization service; the DAO
+accepts the interval as an argument. Isolated tests simulate expiration and
+refresh/logout races without contacting AWS:
+`npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBSessionDAO.test.ts`.
 
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
