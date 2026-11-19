@@ -197,3 +197,12 @@
 - Validation: `sam validate --lint --template-file template.yaml` passed. Local selection-rule checks covered empty, validation, unexpected, and multiline messages without overlapping 400/500 matches. All 80 live integration tests across 15 suites passed after deployment. The actual refreshed stage export contains all fourteen explicit 200/400/500 integration response sets and all twenty-eight method descriptions. Rebuilt and verified the project ZIP. A server failure was not deliberately injected into deployed Lambdas; the 500 checks verified configuration and selection rules.
 - Sources: Consulted the official AWS Lambda error handling documentation: https://docs.aws.amazon.com/apigateway/latest/developerguide/handle-errors-in-lambda-integration.html
 - Review: HTTP 500 response implemented. Milestone 3 complete.
+
+## 2026-11-19: Milestone 4A DAO contracts and storage design
+- Tool: OpenAI Codex
+- Task: Prepare the complete database-agnostic DAO interfaces and SAM table/S3 definitions for review before implementing one feature at a time. Use the student's approved 30-minute inactivity window with TTL cleanup and explicit server expiration enforcement.
+- Changes: Added `tweeter-server/src/model/dao/DAOModels.ts`, `DAOFactory.ts`, `UserDAO.ts`, `SessionDAO.ts`, `FollowDAO.ts`, `StoryDAO.ts`, `FeedDAO.ts`, and `ImageDAO.ts`, each with an AI attribution comment. Added five provisioned DynamoDB tables, a reverse relationship index, session TTL, a session-duration parameter, and a profile-image bucket with a prefix-scoped public-read policy in `template.yaml`. Extended `README.md` with the schema, operation contracts, planned feature sequence, and remaining work. Updated this log.
+- Scope: Foundation only; concrete DAOs, authentication behavior, Lambda wiring, and integration-test migration are pending. No AWS deployment or Git commit performed.
+- Validation: Server TypeScript build, SAM template lint validation, and `git diff --check` passed. SAM also reported a sandbox permission warning while attempting to write its global metadata outside the workspace; template validation completed successfully with exit code 0.
+- Sources: Official AWS TTL documentation: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html and https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ttl-expired-items.html
+- Review: All DAO classes implemented. DAO factory is literally just the dependency injection we did in class. Template.yaml added 5 DynamoDB tables. ![DB tables](DB.png)
