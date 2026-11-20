@@ -636,7 +636,9 @@ The database-agnostic contracts are in `tweeter-server/src/model/dao`.
 services. `model/dao/dynamodb/DynamoDBUserDAO.ts` implements user creation and
 lookup using an injected document client and table name.
 `model/dao/dynamodb/DynamoDBSessionDAO.ts` implements session persistence and
-activity refresh with the same injection approach. Other concrete AWS
+activity refresh with the same injection approach.
+`model/dao/s3/S3ImageDAO.ts` implements profile-image uploads and cleanup using
+an injected S3 client, bucket name, and region. Other concrete AWS
 implementations and service wiring will be added one feature at a time,
 starting with registration, login, and logout. The existing
 Milestone 3 endpoints still use FakeData; these declarations do not yet replace
@@ -663,6 +665,19 @@ records from being recreated. All times are whole Unix seconds. The configured
 accepts the interval as an argument. Isolated tests simulate expiration and
 refresh/logout races without contacting AWS:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBSessionDAO.test.ts`.
+
+The image DAO uploads `Uint8Array` bytes under `image/<imageId>` with the supplied
+image content type and returns the image ID plus an encoded regional HTTPS URL.
+The configured region must match the injected client's region and the bucket's
+region; the current URL format targets standard AWS regions. It omits ACLs to
+match the bucket policy and uses `IfNoneMatch: '*'` to prevent replacing an
+existing image. The caller supplies a unique ID per registration. Cleanup
+deletes the same object key and permits repeated deletion in the unversioned
+bucket. Invalid path-segment IDs, empty bytes, and non-image content types are
+rejected; AWS failures propagate. The content-type check does not inspect image
+file contents. Base64 decoding, format selection, ID generation, and registration
+rollback belong to the upcoming registration flow. Isolated tests mock S3:
+`npm test --workspace tweeter-web -- --runInBand test/server/S3ImageDAO.test.ts`.
 
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
