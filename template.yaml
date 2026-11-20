@@ -14,6 +14,15 @@ Parameters:
     MinValue: 1
     Description: Sliding session inactivity timeout, enforced by the server.
 
+Globals:
+  Function:
+    Environment:
+      Variables:
+        USERS_TABLE_NAME: !Ref UsersTable
+        SESSIONS_TABLE_NAME: !Ref SessionsTable
+        PROFILE_IMAGES_BUCKET: !Ref ProfileImagesBucket
+        SESSION_INACTIVITY_MINUTES: !Ref SessionInactivityMinutes
+
 Resources:
   UsersTable:
     Type: AWS::DynamoDB::Table
