@@ -700,6 +700,27 @@ are stored in configuration; SDK clients use their normal credential provider.
 Factory/configuration tests run with:
 `npm test --workspace tweeter-web -- --runInBand test/server/AWSDAOFactory.test.ts`.
 
+`model/service/AuthorizationService.ts` receives the session factory interface
+and inactivity interval in seconds; it has no AWS dependencies. `createSession`
+issues a 32-byte crypto-generated token, persists only its SHA-256 digest, and
+returns an `AuthToken` only after persistence succeeds. Call it after successful
+registration or credential verification. `authorize` hashes a supplied token,
+delegates atomic activity refresh to the session DAO, and returns the session
+owner's alias for protected operations. `revokeSession` authenticates the token
+before deleting its session. Malformed, missing, revoked, and expired tokens
+produce `[Unauthorized] Invalid or expired authentication token.` Storage and
+random-generator failures propagate rather than being reported as invalid
+credentials. The shared `AuthToken` timestamp remains milliseconds while stored
+session activity/expiration are seconds. No insecure random fallback is used.
+
+This service is not yet connected to the existing user/follow/status services
+or Lambda handlers. API Gateway's 401/CORS mappings and the exclusion of that
+prefix from its current 500 pattern remain part of the authentication wiring
+increment. The 30-minute configuration will be passed by Lambda composition.
+Service tests use mock session DAOs plus a stateful in-memory double to exercise
+activity refresh, inactivity expiration, and revocation:
+`npm test --workspace tweeter-web -- --runInBand test/server/AuthorizationService.test.ts`.
+
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
 | UsersTable | alias | — | Profile, password hash, follower/followee counts |
