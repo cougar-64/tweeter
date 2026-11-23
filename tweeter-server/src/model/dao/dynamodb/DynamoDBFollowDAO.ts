@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import { TransactionCanceledException } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, QueryCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
-import type { QueryCommandInput } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { queryPage } from "./queryPage";
 import { randomUUID } from "node:crypto";
 import type { FollowCounts, Page } from "../DAOModels";
 import type { FollowDAO } from "../FollowDAO";
@@ -116,39 +116,24 @@ export class DynamoDBFollowDAO implements FollowDAO {
 
   private async getPage(userAlias: string, pageSize: number, cursor: string | null, followers: boolean): Promise<Page<string, string>> {
     this.validateAlias(userAlias);
-    if (!Number.isSafeInteger(pageSize) || pageSize <= 0 || !Number.isSafeInteger(pageSize + 1)) {
-      throw new Error("[Bad Request] Page size must be a positive safe integer.");
-    }
     if (cursor !== null) this.validateAlias(cursor);
     const owner = followers ? "followeeAlias" : "followerAlias";
     const other = followers ? "followerAlias" : "followeeAlias";
-    const aliases: string[] = [];
-    let startKey: QueryCommandInput["ExclusiveStartKey"] = cursor === null
-      ? undefined : { [owner]: userAlias, [other]: cursor };
-    do {
-      const result = await this.client.send(new QueryCommand({
-        TableName: this.followsTableName,
-        ...(followers ? { IndexName: this.followersIndexName } : {}),
-        KeyConditionExpression: "#owner = :owner",
-        ExpressionAttributeNames: { "#owner": owner, "#other": other },
-        ExpressionAttributeValues: { ":owner": userAlias },
-        ProjectionExpression: "#other",
-        ScanIndexForward: true,
-        ConsistentRead: !followers, // Global secondary indexes are eventually consistent.
-        Limit: pageSize + 1 - aliases.length,
-        ...(startKey ? { ExclusiveStartKey: startKey } : {}),
-      }));
-      for (const item of result.Items ?? []) {
-        const alias: unknown = item[other];
-        if (typeof alias !== "string" || alias.trim().length === 0) throw new Error("Invalid stored follow relationship.");
-        aliases.push(alias);
-      }
-      startKey = result.LastEvaluatedKey;
-    } while (startKey && Object.keys(startKey).length > 0 && aliases.length <= pageSize);
-    return {
-      items: aliases.slice(0, pageSize),
-      nextCursor: aliases.length > pageSize ? aliases[pageSize - 1] : null,
-    };
+    return queryPage(this.client, {
+      TableName: this.followsTableName,
+      ...(followers ? { IndexName: this.followersIndexName } : {}),
+      KeyConditionExpression: "#owner = :owner",
+      ExpressionAttributeNames: { "#owner": owner, "#other": other },
+      ExpressionAttributeValues: { ":owner": userAlias },
+      ProjectionExpression: "#other",
+      ScanIndexForward: true,
+      ConsistentRead: !followers, // Global secondary indexes are eventually consistent.
+      ...(cursor === null ? {} : { ExclusiveStartKey: { [owner]: userAlias, [other]: cursor } }),
+    }, pageSize, (item) => {
+      const alias: unknown = item[other];
+      if (typeof alias !== "string" || alias.trim().length === 0) throw new Error("Invalid stored follow relationship.");
+      return alias;
+    }, (alias) => alias);
   }
 
   private validateAlias(alias: string): void {

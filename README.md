@@ -964,6 +964,35 @@ retry unprocessed writes, and reject incomplete delivery. Reads query stored
 feed entries. Part A delivery is synchronous; durable background delivery and
 performance improvements belong to Part B.
 
+`model/dao/dynamodb/DynamoDBStoryDAO.ts` now implements story storage, but is not
+yet connected to the factory, StatusService, or Lambdas. It writes a public
+status/author snapshot under `authorAlias` and `postKey`. Replaying the same
+immutable author/timestamp/status-ID record replaces the same key, rather than
+adding a duplicate row. Status IDs must be unique per logical post; changing an
+existing ID's timestamp is not a supported retry. Story reads query only the
+requested author's partition consistently, newest first. IDs break timestamp
+ties, including ties spanning page boundaries.
+
+`DynamoDBStatusStore.ts` shares status encoding, key construction, validation,
+public-field copying, and page retrieval for story/feed storage. Keys use a
+16-digit nonnegative safe-integer millisecond timestamp followed by `#` and a
+1–128 character ASCII letter/digit/underscore/hyphen ID. Returned cursors expose
+only timestamp/ID. Malformed records, mismatched timestamps/keys, or cross-author
+story rows fail explicitly rather than returning corrupted data. The DAO accepts
+an already-authenticated author snapshot; authentication belongs to the upcoming
+StatusService implementation.
+
+`queryPage.ts` now shares the DynamoDB pagination loop between relationship and
+story storage. It fills a page plus one lookahead across internal response
+boundaries, then returns a cursor for the last visible item. The upcoming feed
+DAO can reuse these helpers without copying the query/row-handling code.
+New isolated tests cover 13 statuses, timestamp ties across the 10-item boundary,
+author isolation, identical replays, internal pagination, public-field copying,
+malformed input/storage, and failures. Existing relationship pagination tests
+also pass after extraction:
+`npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBStoryDAO.test.ts test/server/DynamoDBFollowDAO.test.ts`.
+These tests use mocked SDK responses and an in-memory row map, not DynamoDB.
+
 Profile images use the `image/` prefix in ProfileImagesBucket. A bucket policy
 allows public reads only under this prefix. ACLs remain disabled, so the S3 DAO
 must omit `ACL` on upload. Account-level public-access restrictions must also
