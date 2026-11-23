@@ -1,10 +1,14 @@
+/** @jest-environment node */
+/// <reference types="node" />
 // AI-assisted: see AI-ATTRIBUTION.md
-import { handler } from "../../../tweeter-server/src/lambda/follow/GetFollowingStatusLambda";
+import { handler, GetFollowingStatusLambda } from "../../../tweeter-server/src/lambda/follow/GetFollowingStatusLambda";
 import { FollowService } from "../../../tweeter-server/src/model/service/FollowService";
+import * as composition from "../../../tweeter-server/src/lambda/config/getFollowService";
 
 const request = { token: "test-token", followerAlias: "@allen", followeeAlias: "@amy" };
 
 describe("Following status Lambda", () => {
+  beforeEach(() => jest.spyOn(composition, "getFollowService").mockReturnValue(new FollowService()));
   afterEach(() => jest.restoreAllMocks());
 
   it.each([true, false])("preserves a %s relationship result and the direction of the aliases", async (isFollower) => {
@@ -17,18 +21,22 @@ describe("Following status Lambda", () => {
     expect(response).toEqual({ success: true, message: null, isFollower });
   });
 
-  it("returns a boolean from FakeData", async () => {
-    const response = await handler(request);
-
-    expect(response.success).toBe(true);
-    expect(response.message).toBeNull();
-    expect(typeof response.isFollower).toBe("boolean");
+  it("supports service injection without constructing AWS dependencies", async () => {
+    const service = { getIsFollowerStatus: jest.fn().mockResolvedValue(false) };
+    await expect(new GetFollowingStatusLambda(service).handle(request)).resolves.toEqual({ success: true, message: null, isFollower: false });
+    expect(service.getIsFollowerStatus).toHaveBeenCalledWith(request.token, request.followerAlias, request.followeeAlias);
+    expect(composition.getFollowService).not.toHaveBeenCalled();
   });
 
   it("propagates service failures", async () => {
     jest.spyOn(FollowService.prototype, "getIsFollowerStatus").mockRejectedValue(new Error("Service failure"));
 
     await expect(handler(request)).rejects.toThrow("Service failure");
+  });
+
+  it("propagates authorization errors for the API's 401 mapping", async () => {
+    jest.spyOn(FollowService.prototype, "getIsFollowerStatus").mockRejectedValue(new Error("[Unauthorized] Invalid or expired authentication token."));
+    await expect(handler(request)).rejects.toThrow("[Unauthorized]");
   });
 
   it.each([
@@ -48,5 +56,6 @@ describe("Following status Lambda", () => {
 
     await expect(handler(invalidRequest)).rejects.toThrow("[Bad Request]");
     expect(operation).not.toHaveBeenCalled();
+    expect(composition.getFollowService).not.toHaveBeenCalled();
   });
 });

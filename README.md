@@ -641,15 +641,17 @@ activity refresh with the same injection approach.
 an injected S3 client, bucket name, and region. Other concrete AWS
 implementations and service wiring are being added one feature at a time.
 Registration, login, logout, and authenticated user lookup now use persistence
-in source, as do follow and unfollow. UserService no longer imports FakeData. Other
+in source, as do follow/unfollow, both relationship counts, and following status.
+UserService no longer imports FakeData. Other
 existing endpoints still use Milestone 3 FakeData or simulated behavior.
 No Milestone 4A resources have been deployed.
 
 `model/dao/dynamodb/DynamoDBFollowDAO.ts` now implements the complete FollowDAO
-storage contract and is wired into the factory and FollowService's mutations.
+storage contract and is wired into the factory and FollowService's mutations,
+counts, and following-status reads.
 It receives the shared document client, relationship/user table names, and
-optional reverse-index name (default `FollowersIndex`). Relationship reads
-(counts, status, and lists) still need service/Lambda migration.
+optional reverse-index name (default `FollowersIndex`). Only the relationship
+list methods still need service/Lambda migration.
 
 The user DAO stores profile fields, a service-supplied password hash, and initial
 zero follow counts in a flat item keyed by alias. Conditional creation returns
@@ -723,8 +725,9 @@ session activity/expiration are seconds. No insecure random fallback is used.
 Registration and login use this service to create sessions, logout uses it
 to authenticate and revoke sessions, and user lookup uses it to authorize and
 refresh activity. Follow/unfollow also authorize the session before writing.
-Relationship reads and status operations still need authorization wiring.
-Login, logout, user lookup, follow, and unfollow have 401/CORS mappings
+Relationship counts and following status also authenticate before reading.
+Relationship lists and status-post/story/feed operations still need authorization wiring.
+All migrated endpoints have 401/CORS mappings
 with nonoverlapping 500 patterns; equivalent mappings for other protected
 operations remain part of their authentication wiring. All three authentication
 Lambdas and user lookup use composition that passes the 30-minute configuration.
@@ -834,7 +837,7 @@ FollowService's follow/unfollow methods share one mutation helper, which
 authenticates the token, obtains the acting alias from its session, rejects
 self-follow, and delegates the transaction to FollowDAO. The request supplies
 only the target alias. Counts are updated atomically by the DAO; the existing
-count/list/status endpoints still return FakeData until their migration.
+list endpoints still return FakeData until their migration.
 Following does not backfill historical posts, and unfollowing does not remove
 existing feed entries. Feed delivery will be added with status posting.
 
@@ -848,6 +851,27 @@ permissions use the underlying item actions. No scan/index/S3 permissions are
 needed for mutations. The old live mutation tests use dummy tokens and still
 need migration before deployment. Shared service/composition tests run with:
 `npm test --workspace tweeter-web -- --runInBand test/server/FollowServiceActions.test.ts test/server/FollowLambda.test.ts test/server/AWSComposition.test.ts`.
+
+FollowService's follower/followee count methods now share a count-selection
+helper backed by FollowDAO.getCounts. Stored zero counts remain zero; nonexistent
+users produce the DAO's bad-request error rather than an invented count. Following
+status delegates to the persisted relationship lookup and preserves the supplied
+follower-to-followee direction and true/false result. Any authenticated user can
+read these public relationship facts. All implemented relationship operations
+share one authorization/DAO-access helper; reads wait for session validation and
+activity refresh before accessing storage. Errors propagate without fallback data.
+
+The count Lambdas share FollowCountLambda's service resolution/delegation on
+top of CountLambda's existing validation/response template. Following-status
+handling likewise supports injection and resolves the cached FollowService after
+validation. Count roles have GetItem on UsersTable, and following-status has
+GetItem on FollowsTable. All three can GetItem/UpdateItem on SessionsTable for
+authorization/refresh; none can mutate relationships or user counters. Routes
+declare 400/401/500 with CORS and nonoverlapping error patterns. Old live count
+and status tests still depend on dummy sessions/data and need migration before
+deployment. Local tests cover counter selection, zero counts, relationship
+direction, authentication before reads, injection, and infrastructure errors:
+`npm test --workspace tweeter-web -- --runInBand test/server/FollowServiceReads.test.ts test/server/FollowCountLambdas.test.ts test/server/FollowingStatusLambda.test.ts`.
 
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |

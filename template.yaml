@@ -197,6 +197,16 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt UsersTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt SessionsTable.Arn
 
   GetFolloweeCountFunction:
     Type: AWS::Serverless::Function
@@ -210,6 +220,16 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt UsersTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt SessionsTable.Arn
 
   GetFollowingStatusFunction:
     Type: AWS::Serverless::Function
@@ -223,6 +243,16 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt FollowsTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt SessionsTable.Arn
 
   FollowFunction:
     Type: AWS::Serverless::Function
@@ -553,7 +583,7 @@ Resources:
           /followers/count:
             post:
               summary: Get a user's follower count
-              description: Returns the dummy follower count for the supplied user alias.
+              description: Authenticates the session and returns the persisted follower count for the requested user.
               responses:
                 '200':
                   description: A success flag and follower count.
@@ -561,7 +591,12 @@ Resources:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: The token or user alias is missing or invalid.
+                  description: The request is malformed or the requested user does not exist.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The token is malformed, expired, unknown, or revoked.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -598,8 +633,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
@@ -610,7 +652,7 @@ Resources:
           /followees/count:
             post:
               summary: Get a user's followee count
-              description: Returns the dummy followee count for the supplied user alias.
+              description: Authenticates the session and returns the persisted followee count for the requested user.
               responses:
                 '200':
                   description: A success flag and followee count.
@@ -618,7 +660,12 @@ Resources:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: The token or user alias is missing or invalid.
+                  description: The request is malformed or the requested user does not exist.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The token is malformed, expired, unknown, or revoked.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -655,8 +702,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
@@ -667,7 +721,7 @@ Resources:
           /follow/status:
             post:
               summary: Check whether one user follows another
-              description: Returns the dummy following status for the supplied follower and followee aliases.
+              description: Authenticates the session and checks the persisted relationship in the supplied follower-to-followee direction.
               responses:
                 '200':
                   description: A success flag and boolean isFollower result.
@@ -675,7 +729,12 @@ Resources:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: The token or either user alias is missing or invalid.
+                  description: The token or either user alias is missing or malformed.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The token is malformed, expired, unknown, or revoked.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -712,8 +771,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
