@@ -959,8 +959,8 @@ Stories and feeds use a fixed-width timestamp followed by a unique status ID
 as `postKey`, queried newest first. DAO cursors carry timestamp and status ID,
 never DynamoDB key objects. The current API's last-status DTO has no ID: the
 status feature will need to carry the ID through shared DTOs and client/server
-pagination before these DAOs can be wired. Feed writes will batch recipients,
-retry unprocessed writes, and reject incomplete delivery. Reads query stored
+pagination before these DAOs can be wired. The feed DAO batches recipients,
+retries unprocessed writes, and rejects incomplete delivery. Reads query stored
 feed entries. Part A delivery is synchronous; durable background delivery and
 performance improvements belong to Part B.
 
@@ -984,14 +984,43 @@ StatusService implementation.
 
 `queryPage.ts` now shares the DynamoDB pagination loop between relationship and
 story storage. It fills a page plus one lookahead across internal response
-boundaries, then returns a cursor for the last visible item. The upcoming feed
-DAO can reuse these helpers without copying the query/row-handling code.
+boundaries, then returns a cursor for the last visible item. The feed DAO also
+uses these helpers without copying the query/row-handling code.
 New isolated tests cover 13 statuses, timestamp ties across the 10-item boundary,
 author isolation, identical replays, internal pagination, public-field copying,
 malformed input/storage, and failures. Existing relationship pagination tests
 also pass after extraction:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBStoryDAO.test.ts test/server/DynamoDBFollowDAO.test.ts`.
 These tests use mocked SDK responses and an in-memory row map, not DynamoDB.
+
+`model/dao/dynamodb/DynamoDBFeedDAO.ts` now stores precomputed public status
+snapshots under each recipient's `ownerAlias` and the shared post key. It retains
+the original author, deduplicates recipient aliases, validates the status and all
+recipients before writing, and makes repeated delivery of the same immutable
+timestamp/globally unique status ID idempotent per recipient. Empty recipient
+lists issue no writes. Feed reads query only the owner's persisted entries;
+they never calculate a feed from follow relationships or author stories.
+
+Writes use sequential batches of at most 25 items and at most 16 MB of request
+body data, measured after DynamoDB type marshalling and JSON escaping using
+`@aws-sdk/util-dynamodb`. Individual DynamoDB item-size/key restrictions still
+apply and SDK failures propagate. A batch retries only UnprocessedItems, with
+five total attempts and exponential delays with jitter between attempts. Exhausted
+retries fail explicitly and stop later batches. Retryable thrown errors use the
+injected SDK client's retry policy; exhausted SDK errors also propagate. Delivery
+can therefore be partial on failure; replay the same immutable status to safely
+retry completed and incomplete recipients. Durable fan-out recovery remains
+Part B work. Tests inject a pause function rather than waiting for retry timers.
+
+The feed DAO is not yet wired into the factory, StatusService, or Lambdas. Tests
+cover 24 feed-specific cases, including 25-item/16-MB batch boundaries, duplicate
+recipients, partial retry progress/exhaustion, and mixed-author owner-isolated
+pagination through 13 statuses as pages of 10, 3, and 0:
+`npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFeedDAO.test.ts`.
+No live delivery/pagination has been verified. Jest's TypeScript transform now
+explicitly includes Node and Jest types alongside the existing Vite types, so
+mixed client/server test runs can resolve Node modules consistently. All 691
+offline tests pass with `npm test --workspace tweeter-web -- --runInBand`.
 
 Profile images use the `image/` prefix in ProfileImagesBucket. A bucket policy
 allows public reads only under this prefix. ACLs remain disabled, so the S3 DAO

@@ -82,7 +82,14 @@
       "<rootDir>/test/**/*.test.ts"
     ],
     "transform": {
-      "^.+\\.tsx?$": "ts-jest",
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "types": ["node", "jest", "vite/client", "vite-plugin-svgr/client"]
+          }
+        }
+      ],
       "\\.js$": "babel-jest"
     }
   }

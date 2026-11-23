@@ -3,7 +3,8 @@ import type { Page, StatusCursor, StoredStatus } from "./DAOModels";
 
 export interface FeedDAO {
   /**
-   * Persist a copy for each recipient. Repeated delivery is idempotent.
+   * Persist a copy for each recipient. Replaying the same immutable status
+   * (timestamp and globally unique ID) is idempotent for each recipient.
    * Implementations handle storage batch limits and retry transient failures;
    * reject if delivery remains incomplete rather than silently dropping entries.
    */
