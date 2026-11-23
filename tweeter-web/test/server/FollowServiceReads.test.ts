@@ -12,7 +12,7 @@ const operations = [
 describe("FollowService persisted relationship reads", () => {
   let dao: jest.Mocked<FollowDAO>;
   let authorization: { authorize: jest.Mock<Promise<string>, [string]> };
-  let factory: { createFollowDAO: jest.Mock<FollowDAO, []> };
+  let factory: { createFollowDAO: jest.Mock<FollowDAO, []>; createUserDAO: jest.Mock };
   let service: FollowService;
 
   beforeEach(() => {
@@ -22,7 +22,7 @@ describe("FollowService persisted relationship reads", () => {
       getFollowers: jest.fn(), getFollowees: jest.fn(),
     };
     authorization = { authorize: jest.fn().mockResolvedValue("@actor") };
-    factory = { createFollowDAO: jest.fn(() => dao) };
+    factory = { createFollowDAO: jest.fn(() => dao), createUserDAO: jest.fn() };
     service = new FollowService(factory, authorization);
   });
 

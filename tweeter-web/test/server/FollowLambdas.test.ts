@@ -1,8 +1,13 @@
+/** @jest-environment node */
+/// <reference types="node" />
 // AI-assisted: see AI-ATTRIBUTION.md
 import { User } from "tweeter-shared";
 import { FollowService } from "../../../tweeter-server/src/model/service/FollowService";
 import { handler as getFollowers } from "../../../tweeter-server/src/lambda/follow/GetFollowersLambda";
 import { handler as getFollowees } from "../../../tweeter-server/src/lambda/follow/GetFolloweesLambda";
+import { GetFollowersLambda } from "../../../tweeter-server/src/lambda/follow/GetFollowersLambda";
+import { GetFolloweesLambda } from "../../../tweeter-server/src/lambda/follow/GetFolloweesLambda";
+import * as composition from "../../../tweeter-server/src/lambda/config/getFollowService";
 
 const firstPageRequest = {
   token: "milestone-3-test-token",
@@ -12,9 +17,10 @@ const firstPageRequest = {
 };
 
 describe.each([
-  ["followers", getFollowers, "loadMoreFollowers"],
-  ["followees", getFollowees, "loadMoreFollowees"],
-] as const)("%s Lambda", (_feature, handler, serviceMethod) => {
+  ["followers", getFollowers, "loadMoreFollowers", GetFollowersLambda],
+  ["followees", getFollowees, "loadMoreFollowees", GetFolloweesLambda],
+] as const)("%s Lambda", (_feature, handler, serviceMethod, Lambda) => {
+  beforeEach(() => jest.spyOn(composition, "getFollowService").mockReturnValue(new FollowService()));
   afterEach(() => jest.restoreAllMocks());
 
   it("calls its own service method with a reconstructed cursor and converts the result", async () => {
@@ -39,26 +45,36 @@ describe.each([
     await expect(handler(firstPageRequest)).rejects.toThrow("Service failure");
   });
 
-  it("returns a first page of user DTOs", async () => {
-    const response = await handler(firstPageRequest);
-
-    expect(response.success).toBe(true);
-    expect(response.message).toBeNull();
-    expect(response.items).toHaveLength(10);
-    expect(response.items[0]).toMatchObject({ firstName: "Amy", lastName: "Ames", alias: "@amy" });
-    expect(response.items[9].alias).toBe("@frank");
-    expect(response.hasMore).toBe(true);
+  it("supports service injection through the shared pagination base", async () => {
+    const user = new User("Amy", "Ames", "@amy", "https://example.com/amy.png");
+    const service = {
+      loadMoreFollowers: jest.fn().mockResolvedValue([[user], true]),
+      loadMoreFollowees: jest.fn().mockResolvedValue([[user], true]),
+    };
+    await expect(new Lambda(service).handle(firstPageRequest)).resolves.toEqual({
+      success: true, message: null, items: [user.dto], hasMore: true,
+    });
+    expect(service[serviceMethod]).toHaveBeenCalledWith(firstPageRequest.token, firstPageRequest.userAlias, 10, null);
+    expect(composition.getFollowService).not.toHaveBeenCalled();
   });
 
   it("accepts a JSON cursor and retrieves the following page", async () => {
+    const first = new User("Amy", "Ames", "@amy", "https://example.com/amy.png");
+    const next = new User("Bob", "Brown", "@bob", "https://example.com/bob.png");
+    const operation = jest.spyOn(FollowService.prototype, serviceMethod)
+      .mockResolvedValueOnce([[first], true]).mockResolvedValueOnce([[next], false]);
     const firstPage = await handler(firstPageRequest);
-    const nextRequest = JSON.parse(JSON.stringify({ ...firstPageRequest, lastItem: firstPage.items[9] }));
+    const nextRequest = JSON.parse(JSON.stringify({ ...firstPageRequest, lastItem: firstPage.items[0] }));
     const response = await handler(nextRequest);
 
-    expect(response.items).toHaveLength(10);
-    expect(response.items[0].alias).toBe("@fran");
-    expect(response.items[9].alias).toBe("@kent");
-    expect(response.hasMore).toBe(true);
+    expect(response.items).toEqual([next.dto]);
+    expect(operation.mock.calls[1][3]?.dto).toEqual(first.dto);
+    expect(response.hasMore).toBe(false);
+  });
+
+  it("propagates authorization errors for the API's 401 mapping", async () => {
+    jest.spyOn(FollowService.prototype, serviceMethod).mockRejectedValue(new Error("[Unauthorized] Invalid or expired authentication token."));
+    await expect(handler(firstPageRequest)).rejects.toThrow("[Unauthorized]");
   });
 
   it.each([
@@ -72,5 +88,6 @@ describe.each([
     ["malformed user DTO", { ...firstPageRequest, lastItem: {} }],
   ])("rejects %s", async (_description, request) => {
     await expect(handler(request)).rejects.toThrow("[Bad Request]");
+    expect(composition.getFollowService).not.toHaveBeenCalled();
   });
 });

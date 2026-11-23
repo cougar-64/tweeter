@@ -1,17 +1,8 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import type { PagedUserItemRequest, User } from "tweeter-shared";
-import { FollowService } from "../../model/service/FollowService";
-import { PagedUserLambda } from "../PagedUserLambda";
+import { FollowPageLambda } from "./FollowPageLambda";
 
-export class GetFollowersLambda extends PagedUserLambda {
-  protected loadPage(request: PagedUserItemRequest, lastItem: User | null): Promise<[User[], boolean]> {
-    return new FollowService().loadMoreFollowers(
-      request.token,
-      request.userAlias,
-      request.pageSize,
-      lastItem
-    );
-  }
+export class GetFollowersLambda extends FollowPageLambda {
+  protected readonly pageMethod = "loadMoreFollowers" as const;
 }
 
 // AWS invokes this exported function, which starts the shared template method.

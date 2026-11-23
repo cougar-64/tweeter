@@ -1,13 +1,15 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { FakeData, User } from "tweeter-shared";
+import { User } from "tweeter-shared";
 import type { DAOFactory } from "../dao/DAOFactory";
 import type { FollowDAO } from "../dao/FollowDAO";
 import type { FollowCounts } from "../dao/DAOModels";
 import type { AuthorizationService } from "./AuthorizationService";
 
+type FollowServiceFactory = Pick<DAOFactory, "createFollowDAO" | "createUserDAO">;
+
 export class FollowService {
   public constructor(
-    private readonly factory?: Pick<DAOFactory, "createFollowDAO">,
+    private readonly factory?: FollowServiceFactory,
     private readonly authorization?: Pick<AuthorizationService, "authorize">
   ) {}
 
@@ -46,29 +48,46 @@ export class FollowService {
     return this.withFollowDAO(token, async (dao) => (await dao.getCounts(userAlias))[field]);
   }
 
-  private async withFollowDAO<T>(token: string, operation: (dao: FollowDAO, actorAlias: string) => Promise<T>): Promise<T> {
+  private async withFollowDAO<T>(token: string, operation: (dao: FollowDAO, actorAlias: string, factory: FollowServiceFactory) => Promise<T>): Promise<T> {
     if (!this.factory || !this.authorization) throw new Error("Relationship dependencies are required.");
     const actorAlias = await this.authorization.authorize(token);
-    return operation(this.factory.createFollowDAO(), actorAlias);
+    return operation(this.factory.createFollowDAO(), actorAlias, this.factory);
   }
 
-  public async loadMoreFollowees(
-    // Milestone 3 uses dummy data; token verification comes in a later milestone.
-    _token: string,
+  public loadMoreFollowees(
+    token: string,
     userAlias: string,
     pageSize: number,
     lastItem: User | null
   ): Promise<[User[], boolean]> {
-    return FakeData.instance.getPageOfUsers(lastItem, pageSize, userAlias);
+    return this.loadUsers(token, userAlias, pageSize, lastItem, "getFollowees");
   }
 
-  public async loadMoreFollowers(
-    // Milestone 3 uses dummy data; token verification comes in a later milestone.
-    _token: string,
+  public loadMoreFollowers(
+    token: string,
     userAlias: string,
     pageSize: number,
     lastItem: User | null
   ): Promise<[User[], boolean]> {
-    return FakeData.instance.getPageOfUsers(lastItem, pageSize, userAlias);
+    return this.loadUsers(token, userAlias, pageSize, lastItem, "getFollowers");
+  }
+
+  private loadUsers(token: string, userAlias: string, pageSize: number, lastItem: User | null,
+    method: "getFollowers" | "getFollowees"): Promise<[User[], boolean]> {
+    return this.withFollowDAO(token, async (dao, _actor, factory) => {
+      const users = factory.createUserDAO();
+      if (await users.getUser(userAlias) === null) throw new Error("[Bad Request] User not found.");
+      const page = await dao[method](userAlias, pageSize, lastItem?.alias ?? null);
+      // Promise.all preserves the DAO's alias order even if profile reads finish
+      // out of order. Never expose the credential fields returned by UserDAO.
+      const profiles = await Promise.all(page.items.map(async (alias) => {
+        const record = await users.getUser(alias);
+        if (record === null) throw new Error("A related user profile is missing.");
+        return User.fromDto(record.profile);
+      }));
+      // Missing profiles are errors rather than skipped rows, which could lose
+      // the last returned cursor or incorrectly terminate infinite scrolling.
+      return [profiles, page.nextCursor !== null];
+    });
   }
 }

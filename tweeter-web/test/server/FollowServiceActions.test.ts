@@ -15,7 +15,7 @@ describe.each(["follow", "unfollow"] as const)("FollowService.%s", (action) => {
       getFollowers: jest.fn(), getFollowees: jest.fn(),
     };
     authorization = { authorize: jest.fn().mockResolvedValue("@actor") };
-    service = new FollowService({ createFollowDAO: () => dao }, authorization);
+    service = new FollowService({ createFollowDAO: () => dao, createUserDAO: jest.fn() }, authorization);
   });
 
   it("derives the acting alias from authentication and passes only the target from the request", async () => {

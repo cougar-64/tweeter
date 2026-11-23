@@ -641,17 +641,17 @@ activity refresh with the same injection approach.
 an injected S3 client, bucket name, and region. Other concrete AWS
 implementations and service wiring are being added one feature at a time.
 Registration, login, logout, and authenticated user lookup now use persistence
-in source, as do follow/unfollow, both relationship counts, and following status.
-UserService no longer imports FakeData. Other
-existing endpoints still use Milestone 3 FakeData or simulated behavior.
+in source, as do all seven relationship endpoints. UserService and FollowService
+no longer import FakeData. Status posting, story, and feed still use Milestone 3
+FakeData or simulated behavior.
 No Milestone 4A resources have been deployed.
 
 `model/dao/dynamodb/DynamoDBFollowDAO.ts` now implements the complete FollowDAO
 storage contract and is wired into the factory and FollowService's mutations,
-counts, and following-status reads.
+counts, following-status reads, and paged lists.
 It receives the shared document client, relationship/user table names, and
-optional reverse-index name (default `FollowersIndex`). Only the relationship
-list methods still need service/Lambda migration.
+optional reverse-index name (default `FollowersIndex`). All relationship service
+methods now use this DAO and session authorization.
 
 The user DAO stores profile fields, a service-supplied password hash, and initial
 zero follow counts in a flat item keyed by alias. Conditional creation returns
@@ -726,7 +726,8 @@ Registration and login use this service to create sessions, logout uses it
 to authenticate and revoke sessions, and user lookup uses it to authorize and
 refresh activity. Follow/unfollow also authorize the session before writing.
 Relationship counts and following status also authenticate before reading.
-Relationship lists and status-post/story/feed operations still need authorization wiring.
+Relationship lists also authorize and refresh sessions; only status-post/story/feed
+operations still need authorization wiring.
 All migrated endpoints have 401/CORS mappings
 with nonoverlapping 500 patterns; equivalent mappings for other protected
 operations remain part of their authentication wiring. All three authentication
@@ -836,8 +837,8 @@ activity refresh, expiration, logout revocation, and error propagation:
 FollowService's follow/unfollow methods share one mutation helper, which
 authenticates the token, obtains the acting alias from its session, rejects
 self-follow, and delegates the transaction to FollowDAO. The request supplies
-only the target alias. Counts are updated atomically by the DAO; the existing
-list endpoints still return FakeData until their migration.
+only the target alias. Counts are updated atomically by the DAO and read by the
+count endpoints.
 Following does not backfill historical posts, and unfollowing does not remove
 existing feed entries. Feed delivery will be added with status posting.
 
@@ -872,6 +873,31 @@ and status tests still depend on dummy sessions/data and need migration before
 deployment. Local tests cover counter selection, zero counts, relationship
 direction, authentication before reads, injection, and infrastructure errors:
 `npm test --workspace tweeter-web -- --runInBand test/server/FollowServiceReads.test.ts test/server/FollowCountLambdas.test.ts test/server/FollowingStatusLambda.test.ts`.
+
+The followers/followees list methods share an authenticated pagination helper.
+It checks the viewed user exists, retrieves aliases from FollowDAO, and loads
+public profiles through UserDAO. Concurrent profile reads preserve alias order
+using Promise.all. Missing profiles fail the request rather than silently
+dropping a cursor row. The DAO's nextCursor becomes the existing hasMore flag;
+the last User's alias is used for the next request. No DTO/client changes are
+needed. Empty terminal pages return `[[], false]`; an unknown viewed user
+produces a bad-request error.
+
+The list Lambdas share FollowPageLambda's service resolution/delegation, retaining
+PagedUserLambda's validation, JSON cursor reconstruction, and DTO conversion.
+Roles can query FollowsTable, read user profiles, and get/update sessions;
+followers additionally has Query permission for the specific FollowersIndex ARN.
+Neither role can mutate relationships or user rows. Both routes declare
+400/401/500 with CORS and nonoverlapping error patterns. Followers remain
+eventually consistent; followees use the primary table.
+
+Local tests pass 13 profiles through each Lambda and serialized JSON cursor in
+pages of 10, 3, and 0, check reverse-completion profile reads preserve ordering,
+and cover authorization, missing users/profiles, and storage failures:
+`npm test --workspace tweeter-web -- --runInBand test/server/FollowServicePages.test.ts test/server/FollowLambdas.test.ts`.
+These fixtures are in-memory; live tests still use Milestone 3 data and must be
+migrated before deployment. Seed more than ten persisted items for actual browser
+scrolling/passoff and verify deployed profile queries and follower-index behavior.
 
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |

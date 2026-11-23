@@ -171,6 +171,21 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource:
+                - !GetAtt FollowsTable.Arn
+                - !Sub '${FollowsTable.Arn}/index/FollowersIndex'
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt UsersTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt SessionsTable.Arn
 
   GetFolloweesFunction:
     Type: AWS::Serverless::Function
@@ -184,6 +199,19 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !GetAtt FollowsTable.Arn
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt UsersTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt SessionsTable.Arn
 
   GetFollowerCountFunction:
     Type: AWS::Serverless::Function
@@ -467,7 +495,7 @@ Resources:
           /followers/list:
             post:
               summary: Get a page of followers
-              description: Returns dummy followers for the supplied user alias, page size, and optional last user.
+              description: Authenticates the session, queries persisted followers, and returns their public profiles using the optional last-user cursor.
               responses:
                 '200':
                   description: A page of user DTOs and a hasMore flag.
@@ -475,7 +503,12 @@ Resources:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: The request is missing required fields or contains invalid values.
+                  description: Invalid request fields or a user alias that does not exist.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The token is malformed, expired, unknown, or revoked.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -515,8 +548,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
@@ -526,7 +566,7 @@ Resources:
           /followees/list:
             post:
               summary: Get a page of followees
-              description: Returns dummy followees for the supplied user alias, page size, and optional last user.
+              description: Authenticates the session, queries persisted followees, and returns their public profiles using the optional last-user cursor.
               responses:
                 '200':
                   description: A page of user DTOs and a hasMore flag.
@@ -534,7 +574,12 @@ Resources:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: The request is missing required fields or contains invalid values.
+                  description: Invalid request fields or a user alias that does not exist.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The token is malformed, expired, unknown, or revoked.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -571,8 +616,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
