@@ -20,6 +20,7 @@ Globals:
       Variables:
         USERS_TABLE_NAME: !Ref UsersTable
         SESSIONS_TABLE_NAME: !Ref SessionsTable
+        FOLLOWS_TABLE_NAME: !Ref FollowsTable
         PROFILE_IMAGES_BUCKET: !Ref ProfileImagesBucket
         SESSION_INACTIVITY_MINUTES: !Ref SessionInactivityMinutes
 
@@ -235,6 +236,18 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt FollowsTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !GetAtt UsersTable.Arn
+                - !GetAtt SessionsTable.Arn
 
   UnfollowFunction:
     Type: AWS::Serverless::Function
@@ -248,6 +261,18 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:DeleteItem
+              Resource: !GetAtt FollowsTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource:
+                - !GetAtt UsersTable.Arn
+                - !GetAtt SessionsTable.Arn
 
   GetUserFunction:
     Type: AWS::Serverless::Function
@@ -699,15 +724,20 @@ Resources:
           /follow:
             post:
               summary: Follow a user
-              description: Simulates following the supplied user alias using the authentication token. Does not persist a relationship in Milestone 3.
+              description: Authenticates the session owner, creates the relationship to the target user, and updates both follow counts atomically.
               responses:
                 '200':
-                  description: A success flag and optional message after the simulated operation completes.
+                  description: A success flag and optional message after the relationship transaction completes.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: The token or target user alias is missing or invalid.
+                  description: Invalid request fields, a missing account, or an attempt to follow oneself.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The token is malformed, expired, unknown, or revoked.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -744,8 +774,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
@@ -756,15 +793,20 @@ Resources:
           /unfollow:
             post:
               summary: Unfollow a user
-              description: Simulates unfollowing the supplied user alias using the authentication token. Does not persist a relationship in Milestone 3.
+              description: Authenticates the session owner, removes the relationship to the target user, and updates both follow counts atomically.
               responses:
                 '200':
-                  description: A success flag and optional message after the simulated operation completes.
+                  description: A success flag and optional message after the relationship transaction completes.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: The token or target user alias is missing or invalid.
+                  description: Invalid request fields, a missing account, or an attempt to follow oneself.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The token is malformed, expired, unknown, or revoked.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -801,8 +843,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"

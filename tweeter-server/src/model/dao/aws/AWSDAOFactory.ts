@@ -3,7 +3,9 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { loadAWSConfig, type AWSConfig } from "../../../config/AWSConfig";
-import type { AuthenticationDAOFactory } from "../AuthenticationDAOFactory";
+import type { DAOFactory } from "../DAOFactory";
+import type { FollowDAO } from "../FollowDAO";
+import { DynamoDBFollowDAO } from "../dynamodb/DynamoDBFollowDAO";
 import type { ImageDAO } from "../ImageDAO";
 import type { SessionDAO } from "../SessionDAO";
 import type { UserDAO } from "../UserDAO";
@@ -17,10 +19,11 @@ export interface AWSDAOClients {
 }
 
 /** Extend to the complete DAOFactory when the remaining concrete DAOs exist. */
-export class AWSDAOFactory implements AuthenticationDAOFactory {
+export class AWSDAOFactory implements Omit<DAOFactory, "createStoryDAO" | "createFeedDAO"> {
   private readonly userDAO: UserDAO;
   private readonly sessionDAO: SessionDAO;
   private readonly imageDAO: ImageDAO;
+  private readonly followDAO: FollowDAO;
 
   public constructor(
     config: AWSConfig = loadAWSConfig(),
@@ -32,6 +35,7 @@ export class AWSDAOFactory implements AuthenticationDAOFactory {
     this.userDAO = new DynamoDBUserDAO(clients.documentClient, config.usersTableName);
     this.sessionDAO = new DynamoDBSessionDAO(clients.documentClient, config.sessionsTableName);
     this.imageDAO = new S3ImageDAO(clients.s3Client, config.profileImagesBucket, config.region);
+    this.followDAO = new DynamoDBFollowDAO(clients.documentClient, config.followsTableName, config.usersTableName);
   }
 
   public createUserDAO(): UserDAO {
@@ -44,5 +48,9 @@ export class AWSDAOFactory implements AuthenticationDAOFactory {
 
   public createImageDAO(): ImageDAO {
     return this.imageDAO;
+  }
+
+  public createFollowDAO(): FollowDAO {
+    return this.followDAO;
   }
 }

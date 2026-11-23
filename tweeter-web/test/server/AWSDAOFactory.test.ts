@@ -6,13 +6,13 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { loadAWSConfig } from "../../../tweeter-server/src/config/AWSConfig";
-import type { AuthenticationDAOFactory } from "../../../tweeter-server/src/model/dao/AuthenticationDAOFactory";
 import { AWSDAOFactory } from "../../../tweeter-server/src/model/dao/aws/AWSDAOFactory";
 
 const environment = {
   AWS_REGION: "us-west-2",
   USERS_TABLE_NAME: "configured-users",
   SESSIONS_TABLE_NAME: "configured-sessions",
+  FOLLOWS_TABLE_NAME: "configured-follows",
   PROFILE_IMAGES_BUCKET: "configured-images",
 };
 
@@ -23,6 +23,7 @@ describe("AWS configuration", () => {
     expect(loadAWSConfig(environment)).toEqual({
       region: "us-west-2", usersTableName: "configured-users", sessionsTableName: "configured-sessions",
       profileImagesBucket: "configured-images", sessionInactivitySeconds: 1800,
+      followsTableName: "configured-follows",
     });
   });
 
@@ -54,7 +55,7 @@ describe("AWSDAOFactory", () => {
   const documentClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: "us-west-2" }));
   const s3Client = new S3Client({ region: "us-west-2" });
   const config = loadAWSConfig(environment);
-  const factory: AuthenticationDAOFactory = new AWSDAOFactory(config, { documentClient, s3Client });
+  const factory = new AWSDAOFactory(config, { documentClient, s3Client });
 
   afterEach(() => jest.restoreAllMocks());
   afterAll(() => { documentClient.destroy(); s3Client.destroy(); });
@@ -66,6 +67,7 @@ describe("AWSDAOFactory", () => {
     expect(freshFactory.createUserDAO()).toBe(freshFactory.createUserDAO());
     expect(freshFactory.createSessionDAO()).toBe(freshFactory.createSessionDAO());
     expect(freshFactory.createImageDAO()).toBe(freshFactory.createImageDAO());
+    expect(freshFactory.createFollowDAO()).toBe(freshFactory.createFollowDAO());
     expect(documentSend).not.toHaveBeenCalled();
     expect(s3Send).not.toHaveBeenCalled();
   });
@@ -87,6 +89,12 @@ describe("AWSDAOFactory", () => {
       imageId: "photo.png", url: "https://configured-images.s3.us-west-2.amazonaws.com/image/photo.png",
     });
     expect((send.mock.calls[0][0] as PutObjectCommand).input.Bucket).toBe("configured-images");
+  });
+
+  it("routes relationship lookups to the configured follows table", async () => {
+    const send = jest.spyOn(documentClient, "send").mockImplementation(async () => ({ $metadata: {} }));
+    await expect(factory.createFollowDAO().isFollowing("@amy", "@bob")).resolves.toBe(false);
+    expect((send.mock.calls[0][0] as GetCommand).input.TableName).toBe("configured-follows");
   });
 
   it("constructs its default clients from environment configuration without sending requests", () => {

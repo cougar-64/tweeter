@@ -5,6 +5,7 @@ export interface AWSConfig {
   readonly region: string;
   readonly usersTableName: string;
   readonly sessionsTableName: string;
+  readonly followsTableName: string;
   readonly profileImagesBucket: string;
   readonly sessionInactivitySeconds: number;
 }
@@ -30,6 +31,7 @@ export function loadAWSConfig(
     region: required("AWS_REGION"),
     usersTableName: required("USERS_TABLE_NAME"),
     sessionsTableName: required("SESSIONS_TABLE_NAME"),
+    followsTableName: required("FOLLOWS_TABLE_NAME"),
     profileImagesBucket: required("PROFILE_IMAGES_BUCKET"),
     sessionInactivitySeconds,
   });

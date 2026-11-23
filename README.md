@@ -641,15 +641,15 @@ activity refresh with the same injection approach.
 an injected S3 client, bucket name, and region. Other concrete AWS
 implementations and service wiring are being added one feature at a time.
 Registration, login, logout, and authenticated user lookup now use persistence
-in source. UserService no longer imports FakeData. Other
+in source, as do follow and unfollow. UserService no longer imports FakeData. Other
 existing endpoints still use Milestone 3 FakeData or simulated behavior.
 No Milestone 4A resources have been deployed.
 
 `model/dao/dynamodb/DynamoDBFollowDAO.ts` now implements the complete FollowDAO
-storage contract, but is not yet wired into the factory or FollowService.
+storage contract and is wired into the factory and FollowService's mutations.
 It receives the shared document client, relationship/user table names, and
-optional reverse-index name (default `FollowersIndex`). The next increment will
-connect relationship services, authentication, resource configuration, and IAM.
+optional reverse-index name (default `FollowersIndex`). Relationship reads
+(counts, status, and lists) still need service/Lambda migration.
 
 The user DAO stores profile fields, a service-supplied password hash, and initial
 zero follow counts in a flat item keyed by alias. Conditional creation returns
@@ -689,16 +689,16 @@ cleanup orchestration belong to the registration flow. Isolated tests mock S3:
 `model/dao/aws/AWSDAOFactory.ts` provides the three implemented authentication
 DAOs through the database-agnostic `AuthenticationDAOFactory` interface. The
 complete `DAOFactory` extends that smaller interface with follow, story, and
-feed factories. The AWS factory will implement those additional methods when
-their concrete DAOs are available; it has no placeholder implementations.
+feed factories. The AWS factory also provides FollowDAO; only the story/feed
+factory methods remain pending. It has no placeholder implementations.
 The factory constructs each DAO once, shares one DynamoDB document client
-between user/session storage, and uses a separate S3 client in the same region.
-Tests can inject SDK clients. Future Lambda composition should create one
-factory outside the handler and inject it into services.
+between user/session/follow storage, and uses a separate S3 client in the same region.
+Tests can inject SDK clients. Shared lazy composition caches the factory and
+authorization service for user and follow service injection.
 
 `config/AWSConfig.ts` validates configuration when called, without requiring
 environment variables at module import. SAM's global function environment
-supplies `USERS_TABLE_NAME`, `SESSIONS_TABLE_NAME`, `PROFILE_IMAGES_BUCKET`, and
+supplies `USERS_TABLE_NAME`, `SESSIONS_TABLE_NAME`, `FOLLOWS_TABLE_NAME`, `PROFILE_IMAGES_BUCKET`, and
 `SESSION_INACTIVITY_MINUTES` from stack resources/parameters. Lambda supplies
 `AWS_REGION` automatically. Missing or blank resource settings and invalid
 inactivity intervals fail explicitly. The timeout defaults to 30 minutes and
@@ -722,8 +722,9 @@ session activity/expiration are seconds. No insecure random fallback is used.
 
 Registration and login use this service to create sessions, logout uses it
 to authenticate and revoke sessions, and user lookup uses it to authorize and
-refresh activity. Authorization checks are not yet connected to follow/status
-operations. Login, logout, and user lookup have 401/CORS mappings
+refresh activity. Follow/unfollow also authorize the session before writing.
+Relationship reads and status operations still need authorization wiring.
+Login, logout, user lookup, follow, and unfollow have 401/CORS mappings
 with nonoverlapping 500 patterns; equivalent mappings for other protected
 operations remain part of their authentication wiring. All three authentication
 Lambdas and user lookup use composition that passes the 30-minute configuration.
@@ -752,8 +753,9 @@ and photo for subsequent login once the session store recovers. These
 failures can leave orphaned uploads or a saved account without a returned
 session; multi-resource transactional rollback is not implemented.
 
-`lambda/config/getUserService.ts` lazily constructs and caches the AWS factory,
-authorization service, and user service. RegisterLambda validates before resolving
+`lambda/config/getAWSDependencies.ts` lazily constructs and caches the AWS factory
+and authorization service. `getUserService.ts` and `getFollowService.ts` cache
+their services using these shared dependencies. RegisterLambda validates before resolving
 this composition and also accepts an injected service for tests. Its IAM policy
 permits only GetItem/PutItem on UsersTable, PutItem on SessionsTable, and
 PutObject/DeleteObject under the bucket's image prefix. Registration has 512 MB
@@ -828,6 +830,25 @@ exercise public-profile reconstruction, lookups of another user, unknown aliases
 activity refresh, expiration, logout revocation, and error propagation:
 `npm test --workspace tweeter-web -- --runInBand test/server/GetUserService.test.ts test/server/GetUserLambda.test.ts`.
 
+FollowService's follow/unfollow methods share one mutation helper, which
+authenticates the token, obtains the acting alias from its session, rejects
+self-follow, and delegates the transaction to FollowDAO. The request supplies
+only the target alias. Counts are updated atomically by the DAO; the existing
+count/list/status endpoints still return FakeData until their migration.
+Following does not backfill historical posts, and unfollowing does not remove
+existing feed entries. Feed delivery will be added with status posting.
+
+FollowLambda and UnfollowLambda share FollowActionLambda's injected service
+resolution and delegation, while UserActionLambda retains request validation
+and success-response construction. Both routes map bad requests/missing users
+to 400, invalid sessions to 401, and infrastructure errors to generic 500 with
+CORS. Their roles allow PutItem (follow) or DeleteItem (unfollow) only on
+FollowsTable and GetItem/UpdateItem on UsersTable/SessionsTable. Transaction IAM
+permissions use the underlying item actions. No scan/index/S3 permissions are
+needed for mutations. The old live mutation tests use dummy tokens and still
+need migration before deployment. Shared service/composition tests run with:
+`npm test --workspace tweeter-web -- --runInBand test/server/FollowServiceActions.test.ts test/server/FollowLambda.test.ts test/server/AWSComposition.test.ts`.
+
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
 | UsersTable | alias | — | Profile, password hash, follower/followee counts |
@@ -840,10 +861,10 @@ Tables and the relationship index each provision one read and one write capacity
 unit (six of each total). Resource names are generated by CloudFormation to
 avoid collisions between stacks. Tables and the image bucket are retained on
 stack deletion/replacement. They must be removed separately if no longer needed.
-The authentication resource environment variables are defined globally; follow,
-story, and feed settings and least-privilege data permissions will be added as
+The authentication/relationship resource environment variables are defined globally;
+story/feed settings and additional least-privilege permissions will be added as
 each concrete DAO is connected. RegisterLambda, LoginLambda, LogoutLambda, and GetUserLambda
-now use the AWS factory.
+now use the AWS factory, as do FollowLambda and UnfollowLambda.
 
 `SessionInactivityMinutes` defaults to 30 and is connected to registration/login's
 AuthorizationService. Session times use

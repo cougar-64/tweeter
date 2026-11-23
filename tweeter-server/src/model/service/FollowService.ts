@@ -1,15 +1,27 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import { FakeData, User } from "tweeter-shared";
+import type { DAOFactory } from "../dao/DAOFactory";
+import type { AuthorizationService } from "./AuthorizationService";
 
 export class FollowService {
-  public async unfollow(_token: string, _userAlias: string): Promise<void> {
-    // Milestone 3 simulates the operation; token lookup and persistence come later.
-    await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+  public constructor(
+    private readonly factory?: Pick<DAOFactory, "createFollowDAO">,
+    private readonly authorization?: Pick<AuthorizationService, "authorize">
+  ) {}
+
+  public unfollow(token: string, userAlias: string): Promise<void> {
+    return this.changeRelationship(token, userAlias, "unfollow");
   }
 
-  public async follow(_token: string, _userAlias: string): Promise<void> {
-    // Milestone 3 simulates the operation; token lookup and persistence come later.
-    await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+  public follow(token: string, userAlias: string): Promise<void> {
+    return this.changeRelationship(token, userAlias, "follow");
+  }
+
+  private async changeRelationship(token: string, targetAlias: string, action: "follow" | "unfollow"): Promise<void> {
+    if (!this.factory || !this.authorization) throw new Error("Relationship dependencies are required.");
+    const actorAlias = await this.authorization.authorize(token);
+    if (actorAlias === targetAlias) throw new Error("[Bad Request] Users cannot follow themselves.");
+    await this.factory.createFollowDAO()[action](actorAlias, targetAlias);
   }
 
   public async getIsFollowerStatus(
