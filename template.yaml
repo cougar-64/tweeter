@@ -439,6 +439,19 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt UsersTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt SessionsTable.Arn
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !GetAtt StoriesTable.Arn
 
   GetFeedFunction:
     Type: AWS::Serverless::Function
@@ -1267,7 +1280,7 @@ Resources:
           /story/list:
             post:
               summary: Get a page of story statuses
-              description: Returns a page from the shared dummy status list using the supplied page size and optional status cursor. Alias filtering comes with real storage.
+              description: Authenticates the session and returns the requested author's stored story newest first, using a timestamp/status-ID cursor.
               responses:
                 '200':
                   description: A page of status DTOs with nested user DTOs and a hasMore flag.
@@ -1276,6 +1289,11 @@ Resources:
                       type: string
                 '400':
                   description: The token, alias, page size, or last-item cursor is missing or invalid.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The authentication token is invalid or expired.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -1312,8 +1330,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
                   # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"

@@ -643,7 +643,7 @@ implementations and service wiring are being added one feature at a time.
 Registration, login, logout, and authenticated user lookup now use persistence
 in source, as do all seven relationship endpoints. UserService and FollowService
 no longer import FakeData. Status posting now persists stories and precomputes
-feed copies; only story/feed read endpoints still use Milestone 3 FakeData.
+feed copies. Story reads use persistence; only feed reads still use Milestone 3 FakeData.
 No Milestone 4A resources have been deployed.
 
 `model/dao/dynamodb/DynamoDBFollowDAO.ts` now implements the complete FollowDAO
@@ -714,10 +714,10 @@ The story/feed DAOs are cached alongside the other DAOs and use the same injecte
 document client with distinct configured table names. Factory tests cover both
 write paths (story PutItem and feed BatchWriteItem), both query partitions, instance
 reuse without AWS requests, and missing/blank configuration for every resource.
-StatusService posting now uses these DAOs; story/feed reads still need migration.
-PostStatusLambda has the required scoped write/query permissions. Read permissions
-will be granted when those operations are connected; factory construction itself
-does not access either table.
+StatusService posting and story reads now use these DAOs; feed reads still need migration.
+PostStatusLambda has scoped write/query permissions, and GetStoryLambda has story
+query permissions. Feed read permissions will be granted when that operation is
+connected; factory construction itself does not access either table.
 
 `model/service/AuthorizationService.ts` receives the session factory interface
 and inactivity interval in seconds; it has no AWS dependencies. `createSession`
@@ -737,7 +737,8 @@ to authenticate and revoke sessions, and user lookup uses it to authorize and
 refresh activity. Follow/unfollow also authorize the session before writing.
 Relationship counts and following status also authenticate before reading.
 Relationship lists and status posting also authorize and refresh sessions;
-only story/feed read operations still need authorization wiring.
+story reads also authorize and refresh sessions. Only feed reads still need
+authorization wiring.
 All migrated endpoints have 401/CORS mappings
 with nonoverlapping 500 patterns; equivalent mappings for other protected
 operations remain part of their authentication wiring. All three authentication
@@ -969,7 +970,7 @@ Stories and feeds use a fixed-width timestamp followed by a unique status ID
 as `postKey`, queried newest first. DAO cursors carry timestamp and status ID,
 never DynamoDB key objects. StatusDto/Status now preserve optional status IDs
 through client/server pagination. New posts and legacy data may omit the ID;
-persisted reads supply it. Posting is wired; story/feed reads remain pending. The feed DAO batches recipients,
+persisted reads supply it. Posting and story reads are wired; feed reads remain pending. The feed DAO batches recipients,
 retries unprocessed writes, and rejects incomplete delivery. Reads query stored
 feed entries. Part A delivery is synchronous; durable background delivery and
 performance improvements belong to Part B.
@@ -1019,8 +1020,9 @@ with the API/domain layer. Client story/feed services, facade reconstruction,
 Lambda DTO conversion, and last-item JSON requests retain IDs without changing
 their existing request/response containers. Guards still accept legacy data but
 reject malformed supplied IDs and fractional/unsafe timestamps. Posting now
-generates server IDs; cursor requirements for database-backed reads will be wired
-in the remaining status increments. Clients do not invent IDs on conversion.
+generates server IDs; story reads require a persisted ID and matching author on
+nonnull cursors. Feed cursor requirements remain for the next increment. Clients
+do not invent IDs on conversion.
 Model and transport tests run with:
 `npm test --workspace tweeter-web -- --runInBand test/model/StatusIdentity.test.ts test/net/Story.test.ts test/server/StoryLambda.test.ts`.
 
@@ -1050,7 +1052,7 @@ pagination through 13 statuses as pages of 10, 3, and 0:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFeedDAO.test.ts`.
 No live delivery/pagination has been verified. Jest's TypeScript transform now
 explicitly includes Node and Jest types alongside the existing Vite types, so
-mixed client/server test runs can resolve Node modules consistently. All 750
+mixed client/server test runs can resolve Node modules consistently. All 764
 offline tests pass with `npm test --workspace tweeter-web -- --runInBand`.
 
 `StatusService.postStatus` now authorizes the token, loads the session owner's
@@ -1085,8 +1087,30 @@ Posting tests cover authoritative metadata, unique IDs at equal timestamps,
 authentication/storage failures, and partial-delivery errors:
 `npm test --workspace tweeter-web -- --runInBand test/server/PostStatusService.test.ts test/server/PostStatusLambda.test.ts`.
 These use mocked DAOs, not AWS. Existing live posting tests use dummy tokens and
-need migration before deployment; story/feed reads still return FakeData until
-their next increments.
+need migration before deployment; feed reads still return FakeData until
+the next increment.
+
+`StatusService.loadMoreStoryItems` now authenticates and refreshes the session,
+checks that the requested author exists, and calls StoryDAO.getStory with only
+the author alias, page size, and optional timestamp/status-ID cursor. Any signed-in
+user may view another user's story. A valid account with no posts returns an
+empty page; a missing author returns 400. Nonnull cursors require a valid persisted
+ID, a nonnegative safe-integer timestamp, and the requested author's alias. Cursor
+text/profile fields are not used to locate the page, and timestamp ties retain
+separate post identities. Responses reconstruct Status/User objects from the
+stored public snapshot and derive hasMore from the DAO continuation cursor.
+No follow/feed reads or per-post profile lookups are needed.
+
+GetStoryLambda validates the request before resolving the cached status service,
+and supports an injected service for testing. Its role can read profiles,
+get/update sessions, and query only StoriesTable. The story route now maps
+400/401/500 errors with CORS and nonoverlapping selection patterns. Unit tests
+cover authorization ordering/failures, another author's story, missing/empty
+accounts, JSON pagination across 13 equal-timestamp posts as pages of 10/3/0,
+invalid/legacy/cross-author cursors, snapshot reconstruction, continuation flags,
+and storage failures:
+`npm test --workspace tweeter-web -- --runInBand test/server/StoryService.test.ts test/server/StoryLambda.test.ts test/server/AWSComposition.test.ts`.
+All use mocks; real DynamoDB/API Gateway/browser behavior remains unverified.
 
 Profile images use the `image/` prefix in ProfileImagesBucket. A bucket policy
 allows public reads only under this prefix. ACLs remain disabled, so the S3 DAO
@@ -1099,9 +1123,10 @@ unfollowing stops future delivery and retains existing entries. Registration
 starts with an empty feed. These defaults can be revised if the course overview
 requires different behavior.
 
-The existing Story integration test still targets Milestone 3 FakeData. During
-the story feature it will be replaced with authenticated, controlled persisted
-fixtures, checking more than ten posts, author isolation, unique pagination,
-and terminal empty pages. Additional authentication checks will cover invalid
+The existing live Story integration test still targets Milestone 3 FakeData.
+Before deployment, it must be migrated to authenticated, controlled persisted
+fixtures checking more than ten posts, author isolation, unique pagination,
+and terminal empty pages. Offline DAO/service/Lambda tests cover these pagination
+contracts now; live fixtures and browser scrolling verification remain pending. Additional authentication checks will cover invalid
 credentials, expired sessions awaiting TTL cleanup, activity refresh, logout,
 and HTTP error responses with CORS.

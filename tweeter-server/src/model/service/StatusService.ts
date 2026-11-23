@@ -1,5 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { FakeData, Status, User } from "tweeter-shared";
+import { FakeData, Status, User, isStatusId } from "tweeter-shared";
 import { randomUUID } from "node:crypto";
 import type { DAOFactory } from "../dao/DAOFactory";
 import type { Page, StoredStatus } from "../dao/DAOModels";
@@ -54,12 +54,22 @@ export class StatusService {
   }
 
   public async loadMoreStoryItems(
-    _token: string,
-    _userAlias: string,
+    token: string,
+    userAlias: string,
     pageSize: number,
     lastItem: Status | null
   ): Promise<[Status[], boolean]> {
-    // Preserve the shared dummy status list; alias filtering comes with real storage.
-    return FakeData.instance.getPageOfStatuses(lastItem, pageSize);
+    if (!this.factory || !this.authorization) throw new Error("Status dependencies are required.");
+    await this.authorization.authorize(token);
+    // Timestamp alone is ambiguous when multiple posts share a millisecond.
+    // Scope the client cursor to the requested author's story.
+    if (lastItem !== null && (
+      !isStatusId(lastItem.statusId) || !Number.isSafeInteger(lastItem.timestamp) || lastItem.timestamp < 0 ||
+      lastItem.user.alias !== userAlias
+    )) throw new Error("[Bad Request] A story cursor must identify a persisted status by the requested author.");
+    if (await this.factory.createUserDAO().getUser(userAlias) === null) throw new Error("[Bad Request] User not found.");
+    const cursor = lastItem === null ? null : { timestamp: lastItem.timestamp, statusId: lastItem.statusId! };
+    const page = await this.factory.createStoryDAO().getStory(userAlias, pageSize, cursor);
+    return [page.items.map((record) => Status.fromDto(record.status)), page.nextCursor !== null];
   }
 }
