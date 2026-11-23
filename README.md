@@ -640,8 +640,8 @@ activity refresh with the same injection approach.
 `model/dao/s3/S3ImageDAO.ts` implements profile-image uploads and cleanup using
 an injected S3 client, bucket name, and region. Other concrete AWS
 implementations and service wiring are being added one feature at a time.
-Registration now uses persistence and automatic session creation in source;
-login, logout, and the other existing endpoints still use Milestone 3 FakeData
+Registration and login now use persistence and session creation in source;
+logout and the other existing endpoints still use Milestone 3 FakeData
 or simulated behavior. No Milestone 4A resources have been deployed.
 
 The user DAO stores profile fields, a service-supplied password hash, and initial
@@ -649,7 +649,7 @@ zero follow counts in a flat item keyed by alias. Conditional creation returns
 false if the alias exists, preserving existing data; other database errors
 propagate. Strongly consistent lookups return a separate profile DTO, hash, and
 counts, or null for a missing alias. Invalid stored records are rejected.
-Registration hashes passwords; credential checks will be added with login.
+Registration hashes passwords; login compares them with stored bcrypt hashes.
 The isolated DAO tests mock the AWS client and do not contact DynamoDB:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBUserDAO.test.ts`.
 
@@ -713,10 +713,11 @@ random-generator failures propagate rather than being reported as invalid
 credentials. The shared `AuthToken` timestamp remains milliseconds while stored
 session activity/expiration are seconds. No insecure random fallback is used.
 
-Registration uses this service to create sessions; authorization checks are not
-yet connected to existing protected operations. API Gateway's 401/CORS mappings and the exclusion of that
-prefix from its current 500 pattern remain part of the authentication wiring
-increment. Registration's Lambda composition passes the 30-minute configuration.
+Registration and login use this service to create sessions; authorization checks
+are not yet connected to existing protected operations. Login has a 401/CORS
+mapping with a nonoverlapping 500 pattern. Equivalent mappings for protected
+operations remain part of their authentication wiring. Both authentication
+Lambdas use composition that passes the 30-minute configuration.
 Service tests use mock session DAOs plus a stateful in-memory double to exercise
 activity refresh, inactivity expiration, and revocation:
 `npm test --workspace tweeter-web -- --runInBand test/server/AuthorizationService.test.ts`.
@@ -738,7 +739,7 @@ A confirmed duplicate after upload deletes only that attempt's image. Cleanup
 failure produces an infrastructure error retaining both causes. If a user write
 throws with an uncertain outcome, the upload remains because the user may have
 been saved. A session failure after user creation likewise preserves the account
-and photo for subsequent login once persistent login is implemented. These
+and photo for subsequent login once the session store recovers. These
 failures can leave orphaned uploads or a saved account without a returned
 session; multi-resource transactional rollback is not implemented.
 
@@ -759,6 +760,27 @@ verification, automatic sign-in, duplicate races, failures, and cleanup:
 The old live registration integration tests still assert Milestone 3 data and
 must be migrated to unique, persisted fixtures before deploying this change.
 
+`UserService.login` now looks up the exact alias, compares the supplied password
+with the stored bcrypt hash, reconstructs the public user profile, and creates a
+fresh persisted session only on success. Unknown aliases and incorrect passwords
+both throw `[Unauthorized] Invalid alias or password.` Overlong passwords are
+rejected using registration's 72-byte UTF-8 limit; passwords are never trimmed
+before comparison. Lookup, comparison, and session-storage failures propagate
+as server errors. Login does not rewrite the user or upload an image.
+
+LoginLambda uses the same cached composition as registration and accepts a
+service override for isolated tests. Its IAM policy grants only GetItem on
+UsersTable and PutItem on SessionsTable. Like registration, it has 512 MB and a
+30-second timeout for bcrypt processing. The API maps malformed requests to 400,
+incorrect credentials to 401, and unexpected errors to a generic 500, each with
+CORS. The 500 expression excludes both expected error prefixes. Configuration
+and regex checks are local; deployed HTTP status codes and CORS still need live
+verification. The old live login integration tests still assert Milestone 3
+dummy credentials/results and must be migrated before deploying this source.
+Login service tests include real bcrypt comparisons, fresh-session persistence,
+wrong/missing credentials, exact password handling, and infrastructure failures:
+`npm test --workspace tweeter-web -- --runInBand test/server/LoginService.test.ts test/server/LoginLambda.test.ts`.
+
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
 | UsersTable | alias | — | Profile, password hash, follower/followee counts |
@@ -773,9 +795,9 @@ avoid collisions between stacks. Tables and the image bucket are retained on
 stack deletion/replacement. They must be removed separately if no longer needed.
 The authentication resource environment variables are defined globally; follow,
 story, and feed settings and least-privilege data permissions will be added as
-each concrete DAO is connected. RegisterLambda now uses the AWS factory.
+each concrete DAO is connected. RegisterLambda and LoginLambda now use the AWS factory.
 
-`SessionInactivityMinutes` defaults to 30 and is connected to registration's
+`SessionInactivityMinutes` defaults to 30 and is connected to registration/login's
 AuthorizationService. Session times use
 whole Unix seconds. Each authenticated operation must atomically check that the
 session exists and `expiresAt > now`, then refresh last activity and expiration.

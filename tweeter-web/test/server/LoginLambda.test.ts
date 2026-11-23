@@ -1,11 +1,15 @@
+/** @jest-environment node */
+/// <reference types="node" />
 // AI-assisted: see AI-ATTRIBUTION.md
-import { AuthToken, FakeData, User } from "tweeter-shared";
-import { handler } from "../../../tweeter-server/src/lambda/user/LoginLambda";
+import { AuthToken, User } from "tweeter-shared";
+import { handler, LoginLambda } from "../../../tweeter-server/src/lambda/user/LoginLambda";
 import { UserService } from "../../../tweeter-server/src/model/service/UserService";
+import * as composition from "../../../tweeter-server/src/lambda/config/getUserService";
 
 const request = { alias: "@allen", password: "dummy-password" };
 
 describe("Login Lambda", () => {
+  beforeEach(() => jest.spyOn(composition, "getUserService").mockReturnValue(new UserService()));
   afterEach(() => jest.restoreAllMocks());
 
   it("passes credentials unchanged and returns plain user/token DTOs", async () => {
@@ -19,20 +23,19 @@ describe("Login Lambda", () => {
     expect(operation).toHaveBeenCalledWith(request.alias, request.password);
   });
 
-  it("preserves dummy login behavior for arbitrary nonempty credentials", async () => {
-    const response = await handler({ alias: "@another-user", password: "dummy-password" });
-
-    expect(response.success).toBe(true);
-    expect(response.user.alias).toBe("@allen");
-    expect(response.user.firstName).toBe("Allen");
-    expect(response.user.lastName).toBe("Anderson");
-    expect(response.authToken).toEqual(FakeData.instance.authToken.dto);
+  it("supports injected services without constructing AWS dependencies", async () => {
+    const user = new User("Amy", "Ames", "@amy", "https://example.com/amy.png");
+    const token = new AuthToken("test-token", 123);
+    const service = { login: jest.fn().mockResolvedValue([user, token]) };
+    await expect(new LoginLambda(service).handle(request)).resolves.toEqual({
+      success: true, message: null, user: user.dto, authToken: token.dto,
+    });
+    expect(composition.getUserService).not.toHaveBeenCalled();
   });
 
-  it("rejects login if FakeData has no first user", async () => {
-    jest.spyOn(FakeData.instance, "firstUser", "get").mockReturnValue(null);
-
-    await expect(handler(request)).rejects.toThrow("Invalid alias or password");
+  it("propagates the unauthorized prefix for API Gateway", async () => {
+    jest.spyOn(UserService.prototype, "login").mockRejectedValue(new Error("[Unauthorized] Invalid alias or password."));
+    await expect(handler(request)).rejects.toThrow("[Unauthorized] Invalid alias or password.");
   });
 
   it("propagates service failures", async () => {
@@ -56,5 +59,6 @@ describe("Login Lambda", () => {
 
     await expect(handler(invalidRequest)).rejects.toThrow("[Bad Request]");
     expect(operation).not.toHaveBeenCalled();
+    expect(composition.getUserService).not.toHaveBeenCalled();
   });
 });

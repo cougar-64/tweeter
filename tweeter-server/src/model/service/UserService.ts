@@ -76,13 +76,22 @@ export class UserService {
     return [user, token];
   }
 
-  public async login(_alias: string, _password: string): Promise<[User, AuthToken]> {
-    // Preserve Milestone 3 dummy login; real credential checks come later.
-    const user = FakeData.instance.firstUser;
-    if (user === null) {
-      throw new Error("Invalid alias or password");
+  public async login(alias: string, password: string): Promise<[User, AuthToken]> {
+    if (!this.factory || !this.authorization) {
+      throw new Error("Login dependencies are required.");
     }
-    return [user, FakeData.instance.authToken];
+    const invalidCredentials = () => new Error("[Unauthorized] Invalid alias or password.");
+    // Apply the same byte limit as registration; never accept a truncated
+    // password sharing the first 72 bytes with the actual credential.
+    if (alias.trim().length === 0 || password.trim().length === 0 || bcrypt.truncates(password)) {
+      throw invalidCredentials();
+    }
+    const record = await this.factory.createUserDAO().getUser(alias);
+    if (record === null || !await bcrypt.compare(password, record.passwordHash)) {
+      throw invalidCredentials();
+    }
+    const token = await this.authorization.createSession(record.profile.alias);
+    return [User.fromDto(record.profile), token];
   }
 
   public async getUser(_token: string, alias: string): Promise<User | null> {
