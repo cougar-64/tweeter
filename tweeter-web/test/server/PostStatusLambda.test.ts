@@ -1,12 +1,16 @@
+/** @jest-environment node */
+/// <reference types="node" />
 // AI-assisted: see AI-ATTRIBUTION.md
 import { Status, Type, User } from "tweeter-shared";
-import { handler } from "../../../tweeter-server/src/lambda/status/PostStatusLambda";
+import { handler, PostStatusLambda } from "../../../tweeter-server/src/lambda/status/PostStatusLambda";
 import { StatusService } from "../../../tweeter-server/src/model/service/StatusService";
+import * as composition from "../../../tweeter-server/src/lambda/config/getStatusService";
 
 const status = new Status("Hello @amy! https://byu.edu", new User("Allen", "Anderson", "@allen", "image.png"), 0);
 const request = { token: "dummy-token", status: status.dto };
 
 describe("Post Status Lambda", () => {
+  beforeEach(() => jest.spyOn(composition, "getStatusService").mockReturnValue(new StatusService()));
   afterEach(() => jest.restoreAllMocks());
 
   it("reconstructs the status and author and waits for server completion", async () => {
@@ -33,6 +37,18 @@ describe("Post Status Lambda", () => {
     await expect(handler(request)).rejects.toThrow("Posting failed");
   });
 
+  it("supports service injection without resolving AWS composition", async () => {
+    const service = { postStatus: jest.fn().mockResolvedValue(undefined) };
+    await expect(new PostStatusLambda(service).handle(request)).resolves.toEqual({ success: true, message: null });
+    expect(service.postStatus).toHaveBeenCalledWith(request.token, expect.any(Status));
+    expect(composition.getStatusService).not.toHaveBeenCalled();
+  });
+
+  it("propagates authorization failures for the 401 mapping", async () => {
+    jest.spyOn(StatusService.prototype, "postStatus").mockRejectedValue(new Error("[Unauthorized] Invalid or expired authentication token."));
+    await expect(handler(request)).rejects.toThrow("[Unauthorized]");
+  });
+
   it.each<[string, unknown]>([
     ["missing request", undefined], ["null request", null], ["array request", []],
     ["missing token", { status: status.dto }], ["blank token", { ...request, token: " " }],
@@ -51,5 +67,6 @@ describe("Post Status Lambda", () => {
 
     await expect(handler(invalidRequest)).rejects.toThrow("[Bad Request]");
     expect(operation).not.toHaveBeenCalled();
+    expect(composition.getStatusService).not.toHaveBeenCalled();
   });
 });

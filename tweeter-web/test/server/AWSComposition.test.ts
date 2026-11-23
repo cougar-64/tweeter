@@ -5,8 +5,10 @@ import process from "node:process";
 import { getAWSDependencies } from "../../../tweeter-server/src/lambda/config/getAWSDependencies";
 import { getUserService } from "../../../tweeter-server/src/lambda/config/getUserService";
 import { getFollowService } from "../../../tweeter-server/src/lambda/config/getFollowService";
+import { getStatusService } from "../../../tweeter-server/src/lambda/config/getStatusService";
+import { Status, User } from "tweeter-shared";
 
-it("caches user/follow services and shares one factory and authorization instance", async () => {
+it("caches user/follow/status services and shares one factory and authorization instance", async () => {
   jest.replaceProperty(process, "env", {
     AWS_REGION: "us-east-1", USERS_TABLE_NAME: "users", SESSIONS_TABLE_NAME: "sessions",
     FOLLOWS_TABLE_NAME: "follows", PROFILE_IMAGES_BUCKET: "images",
@@ -17,12 +19,21 @@ it("caches user/follow services and shares one factory and authorization instanc
     expect(getAWSDependencies()).toBe(dependencies);
     expect(getUserService()).toBe(getUserService());
     expect(getFollowService()).toBe(getFollowService());
+    expect(getStatusService()).toBe(getStatusService());
     const authorize = jest.spyOn(dependencies.authorization, "authorize").mockResolvedValue("@actor");
     const lookup = jest.spyOn(dependencies.factory.createUserDAO(), "getUser").mockResolvedValue(null);
     const follow = jest.spyOn(dependencies.factory.createFollowDAO(), "follow").mockResolvedValue(undefined);
     await expect(getUserService().getUser("token", "@target")).resolves.toBeNull();
     await getFollowService().follow("token", "@target");
-    expect(authorize).toHaveBeenCalledTimes(2);
+    lookup.mockResolvedValue({
+      profile: new User("Test", "User", "@actor", "image.png").dto,
+      passwordHash: "private-hash", followerCount: 0, followeeCount: 0,
+    });
+    const save = jest.spyOn(dependencies.factory.createStoryDAO(), "putStatus").mockResolvedValue(undefined);
+    jest.spyOn(dependencies.factory.createFollowDAO(), "getFollowers").mockResolvedValue({ items: [], nextCursor: null });
+    await getStatusService().postStatus("token", new Status("Hello", new User("Test", "User", "@actor", "image.png"), 0));
+    expect(authorize).toHaveBeenCalledTimes(3);
+    expect(save).toHaveBeenCalledTimes(1);
     expect(lookup).toHaveBeenCalledWith("@target");
     expect(follow).toHaveBeenCalledWith("@actor", "@target");
   } finally {

@@ -464,7 +464,28 @@ Resources:
       Architectures:
         - arm64
       MemorySize: 128
-      Timeout: 10
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt UsersTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt SessionsTable.Arn
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt StoriesTable.Arn
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource:
+                - !GetAtt FollowsTable.Arn
+                - !Sub '${FollowsTable.Arn}/index/FollowersIndex'
+            - Effect: Allow
+              Action: dynamodb:BatchWriteItem
+              Resource: !GetAtt FeedsTable.Arn
 
   TweeterApi:
     Type: AWS::Serverless::Api
@@ -1360,15 +1381,20 @@ Resources:
           /status/post:
             post:
               summary: Post a status
-              description: Validates the supplied token and status DTO, then simulates posting. Does not persist the status or update feeds in Milestone 3.
+              description: Authenticates the session owner, saves a status with a server-assigned ID and timestamp, and delivers a copy to each follower's persisted feed before reporting success.
               responses:
                 '200':
-                  description: A success flag and optional message after simulated posting completes.
+                  description: A success flag and optional message after story persistence and feed delivery complete.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
                   description: The token or status DTO is missing or invalid, or the post is blank.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The token is invalid or expired, or its user no longer exists.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -1405,8 +1431,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"

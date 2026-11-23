@@ -642,8 +642,8 @@ an injected S3 client, bucket name, and region. Other concrete AWS
 implementations and service wiring are being added one feature at a time.
 Registration, login, logout, and authenticated user lookup now use persistence
 in source, as do all seven relationship endpoints. UserService and FollowService
-no longer import FakeData. Status posting, story, and feed still use Milestone 3
-FakeData or simulated behavior.
+no longer import FakeData. Status posting now persists stories and precomputes
+feed copies; only story/feed read endpoints still use Milestone 3 FakeData.
 No Milestone 4A resources have been deployed.
 
 `model/dao/dynamodb/DynamoDBFollowDAO.ts` now implements the complete FollowDAO
@@ -714,9 +714,10 @@ The story/feed DAOs are cached alongside the other DAOs and use the same injecte
 document client with distinct configured table names. Factory tests cover both
 write paths (story PutItem and feed BatchWriteItem), both query partitions, instance
 reuse without AWS requests, and missing/blank configuration for every resource.
-StatusService and its Lambdas still need migration from FakeData. Story/feed
-permissions will be granted to the appropriate Lambdas when those operations
-are connected; factory construction itself does not access either table.
+StatusService posting now uses these DAOs; story/feed reads still need migration.
+PostStatusLambda has the required scoped write/query permissions. Read permissions
+will be granted when those operations are connected; factory construction itself
+does not access either table.
 
 `model/service/AuthorizationService.ts` receives the session factory interface
 and inactivity interval in seconds; it has no AWS dependencies. `createSession`
@@ -735,8 +736,8 @@ Registration and login use this service to create sessions, logout uses it
 to authenticate and revoke sessions, and user lookup uses it to authorize and
 refresh activity. Follow/unfollow also authorize the session before writing.
 Relationship counts and following status also authenticate before reading.
-Relationship lists also authorize and refresh sessions; only status-post/story/feed
-operations still need authorization wiring.
+Relationship lists and status posting also authorize and refresh sessions;
+only story/feed read operations still need authorization wiring.
 All migrated endpoints have 401/CORS mappings
 with nonoverlapping 500 patterns; equivalent mappings for other protected
 operations remain part of their authentication wiring. All three authentication
@@ -849,7 +850,7 @@ self-follow, and delegates the transaction to FollowDAO. The request supplies
 only the target alias. Counts are updated atomically by the DAO and read by the
 count endpoints.
 Following does not backfill historical posts, and unfollowing does not remove
-existing feed entries. Feed delivery will be added with status posting.
+existing feed entries. Posting now delivers copies to the author's current followers.
 
 FollowLambda and UnfollowLambda share FollowActionLambda's injected service
 resolution and delegation, while UserActionLambda retains request validation
@@ -968,13 +969,13 @@ Stories and feeds use a fixed-width timestamp followed by a unique status ID
 as `postKey`, queried newest first. DAO cursors carry timestamp and status ID,
 never DynamoDB key objects. StatusDto/Status now preserve optional status IDs
 through client/server pagination. New posts and legacy data may omit the ID;
-persisted reads supply it. Status service wiring remains pending. The feed DAO batches recipients,
+persisted reads supply it. Posting is wired; story/feed reads remain pending. The feed DAO batches recipients,
 retries unprocessed writes, and rejects incomplete delivery. Reads query stored
 feed entries. Part A delivery is synchronous; durable background delivery and
 performance improvements belong to Part B.
 
 `model/dao/dynamodb/DynamoDBStoryDAO.ts` now implements story storage and is provided
-by the AWS factory; StatusService/Lambda wiring remains pending. It writes a public
+by the AWS factory and used by posting; story read wiring remains pending. It writes a public
 status/author snapshot under `authorAlias` and `postKey`. Replaying the same
 immutable author/timestamp/status-ID record replaces the same key, rather than
 adding a duplicate row. Status IDs must be unique per logical post; changing an
@@ -988,8 +989,7 @@ public-field copying, and page retrieval for story/feed storage. Keys use a
 1–128 character ASCII letter/digit/underscore/hyphen ID. Returned cursors expose
 only timestamp/ID. Malformed records, mismatched timestamps/keys, or cross-author
 story rows fail explicitly rather than returning corrupted data. The DAO accepts
-an already-authenticated author snapshot; authentication belongs to the upcoming
-StatusService implementation.
+an already-authenticated author snapshot; StatusService posting now supplies it.
 
 `queryPage.ts` now shares the DynamoDB pagination loop between relationship and
 story storage. It fills a page plus one lookahead across internal response
@@ -1018,9 +1018,9 @@ nested ID rather than returning ambiguous cursors. ID shape validation is shared
 with the API/domain layer. Client story/feed services, facade reconstruction,
 Lambda DTO conversion, and last-item JSON requests retain IDs without changing
 their existing request/response containers. Guards still accept legacy data but
-reject malformed supplied IDs and fractional/unsafe timestamps. Posting's server
-ID generation and cursor requirements for database-backed services will be wired
-in the remaining status increments; clients do not invent IDs on conversion.
+reject malformed supplied IDs and fractional/unsafe timestamps. Posting now
+generates server IDs; cursor requirements for database-backed reads will be wired
+in the remaining status increments. Clients do not invent IDs on conversion.
 Model and transport tests run with:
 `npm test --workspace tweeter-web -- --runInBand test/model/StatusIdentity.test.ts test/net/Story.test.ts test/server/StoryLambda.test.ts`.
 
@@ -1043,15 +1043,50 @@ can therefore be partial on failure; replay the same immutable status to safely
 retry completed and incomplete recipients. Durable fan-out recovery remains
 Part B work. Tests inject a pause function rather than waiting for retry timers.
 
-The feed DAO is provided by the AWS factory; StatusService/Lambda wiring remains pending. Tests
+The feed DAO is provided by the AWS factory and used by posting; feed read wiring remains pending. Tests
 cover 24 feed-specific cases, including 25-item/16-MB batch boundaries, duplicate
 recipients, partial retry progress/exhaustion, and mixed-author owner-isolated
 pagination through 13 statuses as pages of 10, 3, and 0:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFeedDAO.test.ts`.
 No live delivery/pagination has been verified. Jest's TypeScript transform now
 explicitly includes Node and Jest types alongside the existing Vite types, so
-mixed client/server test runs can resolve Node modules consistently. All 691
+mixed client/server test runs can resolve Node modules consistently. All 750
 offline tests pass with `npm test --workspace tweeter-web -- --runInBand`.
+
+`StatusService.postStatus` now authorizes the token, loads the session owner's
+stored profile, and constructs one immutable post snapshot using the submitted
+text, a server UUID, and server millisecond time. Client author/profile, timestamp,
+and ID are ignored for persistence. It saves the story first, pages through the
+author's followers in groups of 100, and awaits FeedDAO.putEntries for each page.
+The feed DAO splits those writes into safe batches/retries. Every recipient
+receives the same post ID, timestamp, and author snapshot. Authors with no
+followers still get a story entry without feed writes. A repeated follower cursor
+fails explicitly rather than looping indefinitely.
+
+Posting success waits for all requested feed delivery. Cross-table/fan-out work
+is not atomic: a failure after the story write retains that story and any completed
+feed copies, and the request returns an error. There is no durable pending-delivery
+job yet. Replaying an immutable record is safe at the DAO level; repeating the
+entire HTTP post command creates a new server ID and can create another post.
+Follower discovery uses the eventually consistent reverse index. Actual AWS
+delivery, index propagation, and high-follower latency remain unverified.
+
+`lambda/config/getStatusService.ts` caches the injected service using the same
+factory/authorization dependencies as user/follow services. PostStatusLambda
+validates before composition, supports service injection, and waits for posting
+completion. Its role can read the user profile, get/update sessions, put stories,
+query the follows table/FollowersIndex, and batch-write feeds. Its timeout is now
+30 seconds for synchronous delivery. Invalid requests map to 400, invalid sessions
+or a missing session-owner account to 401, and storage/delivery errors to generic
+500, all with CORS and nonoverlapping selection patterns.
+
+Posting tests cover authoritative metadata, unique IDs at equal timestamps,
+113 followers across multiple pages, empty follower lists, pending delivery,
+authentication/storage failures, and partial-delivery errors:
+`npm test --workspace tweeter-web -- --runInBand test/server/PostStatusService.test.ts test/server/PostStatusLambda.test.ts`.
+These use mocked DAOs, not AWS. Existing live posting tests use dummy tokens and
+need migration before deployment; story/feed reads still return FakeData until
+their next increments.
 
 Profile images use the `image/` prefix in ProfileImagesBucket. A bucket policy
 allows public reads only under this prefix. ACLs remain disabled, so the S3 DAO
