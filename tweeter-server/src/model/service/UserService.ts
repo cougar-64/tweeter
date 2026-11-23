@@ -15,12 +15,14 @@ export class UserService {
   // Optional only while the remaining Milestone 3 methods migrate to DAOs.
   public constructor(
     private readonly factory?: AuthenticationDAOFactory,
-    private readonly authorization?: Pick<AuthorizationService, "createSession">
+    private readonly authorization?: Pick<AuthorizationService, "createSession" | "revokeSession">
   ) {}
 
-  public async logout(_token: string): Promise<void> {
-    // Milestone 3 simulates logout; session invalidation comes later.
-    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+  public async logout(token: string): Promise<void> {
+    if (!this.authorization) {
+      throw new Error("Logout dependencies are required.");
+    }
+    await this.authorization.revokeSession(token);
   }
 
   public async register(

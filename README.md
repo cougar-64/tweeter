@@ -640,9 +640,9 @@ activity refresh with the same injection approach.
 `model/dao/s3/S3ImageDAO.ts` implements profile-image uploads and cleanup using
 an injected S3 client, bucket name, and region. Other concrete AWS
 implementations and service wiring are being added one feature at a time.
-Registration and login now use persistence and session creation in source;
-logout and the other existing endpoints still use Milestone 3 FakeData
-or simulated behavior. No Milestone 4A resources have been deployed.
+Registration, login, and logout now use persisted sessions in source. Other
+existing endpoints still use Milestone 3 FakeData or simulated behavior.
+No Milestone 4A resources have been deployed.
 
 The user DAO stores profile fields, a service-supplied password hash, and initial
 zero follow counts in a flat item keyed by alias. Conditional creation returns
@@ -713,10 +713,11 @@ random-generator failures propagate rather than being reported as invalid
 credentials. The shared `AuthToken` timestamp remains milliseconds while stored
 session activity/expiration are seconds. No insecure random fallback is used.
 
-Registration and login use this service to create sessions; authorization checks
-are not yet connected to existing protected operations. Login has a 401/CORS
-mapping with a nonoverlapping 500 pattern. Equivalent mappings for protected
-operations remain part of their authentication wiring. Both authentication
+Registration and login use this service to create sessions, and logout uses it
+to authenticate and revoke sessions. Authorization checks are not yet connected
+to the remaining protected operations. Login and logout have 401/CORS mappings
+with nonoverlapping 500 patterns; equivalent mappings for other protected
+operations remain part of their authentication wiring. All three authentication
 Lambdas use composition that passes the 30-minute configuration.
 Service tests use mock session DAOs plus a stateful in-memory double to exercise
 activity refresh, inactivity expiration, and revocation:
@@ -781,6 +782,26 @@ Login service tests include real bcrypt comparisons, fresh-session persistence,
 wrong/missing credentials, exact password handling, and infrastructure failures:
 `npm test --workspace tweeter-web -- --runInBand test/server/LoginService.test.ts test/server/LoginLambda.test.ts`.
 
+`UserService.logout` now delegates to AuthorizationService's authenticated
+revocation rather than a simulated delay. LogoutLambda validates the request,
+resolves the cached AWS user service (or an injected test service), and waits
+for deletion before reporting success. Only that token's session is deleted;
+other sessions for the same user and sessions for other users remain active.
+Subsequent AuthorizationService checks reject the revoked token. Repeated
+logout with the same revoked token returns 401 because logout itself requires
+authentication, although the underlying DAO deletion operation is idempotent.
+Other endpoints will enforce revoked sessions as their authorization is wired.
+
+LogoutFunction has GetItem/UpdateItem/DeleteItem permissions only on
+SessionsTable, matching session validation/refresh and deletion. Request-shape
+errors map to 400, malformed/expired/unknown/revoked tokens to 401, and storage
+failures to a generic 500, all with CORS. Local regex checks verify that expected
+400/401 errors do not also match 500. The old live logout tests use dummy tokens
+and must be migrated to real sessions before deployment; live status/CORS
+behavior has not yet been verified. Service tests use stateful session DAO
+doubles to check revocation, session isolation, expiration, and failures:
+`npm test --workspace tweeter-web -- --runInBand test/server/LogoutService.test.ts test/server/LogoutLambda.test.ts`.
+
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
 | UsersTable | alias | — | Profile, password hash, follower/followee counts |
@@ -795,7 +816,8 @@ avoid collisions between stacks. Tables and the image bucket are retained on
 stack deletion/replacement. They must be removed separately if no longer needed.
 The authentication resource environment variables are defined globally; follow,
 story, and feed settings and least-privilege data permissions will be added as
-each concrete DAO is connected. RegisterLambda and LoginLambda now use the AWS factory.
+each concrete DAO is connected. RegisterLambda, LoginLambda, and LogoutLambda
+now use the AWS factory.
 
 `SessionInactivityMinutes` defaults to 30 and is connected to registration/login's
 AuthorizationService. Session times use

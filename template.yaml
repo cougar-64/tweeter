@@ -323,6 +323,14 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+              Resource: !GetAtt SessionsTable.Arn
 
   GetStoryFunction:
     Type: AWS::Serverless::Function
@@ -978,15 +986,20 @@ Resources:
           /user/logout:
             post:
               summary: Log out a user
-              description: Validates the supplied token and simulates logout. Does not invalidate a stored session in Milestone 3.
+              description: Authenticates the supplied token and deletes its persisted session so subsequent requests using that token are unauthorized.
               responses:
                 '200':
-                  description: A success flag and optional message after the simulated logout completes.
+                  description: A success flag and optional message after session deletion completes.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: The token is missing or invalid.
+                  description: The token is missing, blank, or not a string.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The authentication token is malformed, expired, unknown, or already revoked.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -1023,8 +1036,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
