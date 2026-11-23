@@ -6,6 +6,8 @@ export interface AWSConfig {
   readonly usersTableName: string;
   readonly sessionsTableName: string;
   readonly followsTableName: string;
+  readonly storiesTableName: string;
+  readonly feedsTableName: string;
   readonly profileImagesBucket: string;
   readonly sessionInactivitySeconds: number;
 }
@@ -32,6 +34,8 @@ export function loadAWSConfig(
     usersTableName: required("USERS_TABLE_NAME"),
     sessionsTableName: required("SESSIONS_TABLE_NAME"),
     followsTableName: required("FOLLOWS_TABLE_NAME"),
+    storiesTableName: required("STORIES_TABLE_NAME"),
+    feedsTableName: required("FEEDS_TABLE_NAME"),
     profileImagesBucket: required("PROFILE_IMAGES_BUCKET"),
     sessionInactivitySeconds,
   });

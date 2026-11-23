@@ -5,7 +5,11 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { loadAWSConfig, type AWSConfig } from "../../../config/AWSConfig";
 import type { DAOFactory } from "../DAOFactory";
 import type { FollowDAO } from "../FollowDAO";
+import type { StoryDAO } from "../StoryDAO";
+import type { FeedDAO } from "../FeedDAO";
 import { DynamoDBFollowDAO } from "../dynamodb/DynamoDBFollowDAO";
+import { DynamoDBStoryDAO } from "../dynamodb/DynamoDBStoryDAO";
+import { DynamoDBFeedDAO } from "../dynamodb/DynamoDBFeedDAO";
 import type { ImageDAO } from "../ImageDAO";
 import type { SessionDAO } from "../SessionDAO";
 import type { UserDAO } from "../UserDAO";
@@ -18,12 +22,14 @@ export interface AWSDAOClients {
   readonly s3Client: S3Client;
 }
 
-/** Extend to the complete DAOFactory when the remaining concrete DAOs exist. */
-export class AWSDAOFactory implements Omit<DAOFactory, "createStoryDAO" | "createFeedDAO"> {
+/** Complete AWS implementation; each DAO reuses the instance's SDK clients. */
+export class AWSDAOFactory implements DAOFactory {
   private readonly userDAO: UserDAO;
   private readonly sessionDAO: SessionDAO;
   private readonly imageDAO: ImageDAO;
   private readonly followDAO: FollowDAO;
+  private readonly storyDAO: StoryDAO;
+  private readonly feedDAO: FeedDAO;
 
   public constructor(
     config: AWSConfig = loadAWSConfig(),
@@ -36,6 +42,8 @@ export class AWSDAOFactory implements Omit<DAOFactory, "createStoryDAO" | "creat
     this.sessionDAO = new DynamoDBSessionDAO(clients.documentClient, config.sessionsTableName);
     this.imageDAO = new S3ImageDAO(clients.s3Client, config.profileImagesBucket, config.region);
     this.followDAO = new DynamoDBFollowDAO(clients.documentClient, config.followsTableName, config.usersTableName);
+    this.storyDAO = new DynamoDBStoryDAO(clients.documentClient, config.storiesTableName);
+    this.feedDAO = new DynamoDBFeedDAO(clients.documentClient, config.feedsTableName);
   }
 
   public createUserDAO(): UserDAO {
@@ -52,5 +60,13 @@ export class AWSDAOFactory implements Omit<DAOFactory, "createStoryDAO" | "creat
 
   public createFollowDAO(): FollowDAO {
     return this.followDAO;
+  }
+
+  public createStoryDAO(): StoryDAO {
+    return this.storyDAO;
+  }
+
+  public createFeedDAO(): FeedDAO {
+    return this.feedDAO;
   }
 }

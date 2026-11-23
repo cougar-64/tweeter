@@ -21,6 +21,8 @@ Globals:
         USERS_TABLE_NAME: !Ref UsersTable
         SESSIONS_TABLE_NAME: !Ref SessionsTable
         FOLLOWS_TABLE_NAME: !Ref FollowsTable
+        STORIES_TABLE_NAME: !Ref StoriesTable
+        FEEDS_TABLE_NAME: !Ref FeedsTable
         PROFILE_IMAGES_BUCKET: !Ref ProfileImagesBucket
         SESSION_INACTIVITY_MINUTES: !Ref SessionInactivityMinutes
 

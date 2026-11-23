@@ -10,6 +10,7 @@ it("caches user/follow services and shares one factory and authorization instanc
   jest.replaceProperty(process, "env", {
     AWS_REGION: "us-east-1", USERS_TABLE_NAME: "users", SESSIONS_TABLE_NAME: "sessions",
     FOLLOWS_TABLE_NAME: "follows", PROFILE_IMAGES_BUCKET: "images",
+    STORIES_TABLE_NAME: "stories", FEEDS_TABLE_NAME: "feeds",
   });
   try {
     const dependencies = getAWSDependencies();
