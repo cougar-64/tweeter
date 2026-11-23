@@ -1,5 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { FakeData, Status, User, isStatusId } from "tweeter-shared";
+import { Status, User, isStatusId } from "tweeter-shared";
 import { randomUUID } from "node:crypto";
 import type { DAOFactory } from "../dao/DAOFactory";
 import type { Page, StoredStatus } from "../dao/DAOModels";
@@ -43,33 +43,43 @@ export class StatusService {
     // an already-saved story or partially delivered feed is not rolled back.
   }
 
-  public async loadMoreFeedItems(
-    _token: string,
-    _userAlias: string,
-    pageSize: number,
-    lastItem: Status | null
-  ): Promise<[Status[], boolean]> {
-    // Preserve the shared dummy list; followee-based filtering comes with real storage.
-    return FakeData.instance.getPageOfStatuses(lastItem, pageSize);
-  }
-
-  public async loadMoreStoryItems(
+  public loadMoreFeedItems(
     token: string,
     userAlias: string,
     pageSize: number,
     lastItem: Status | null
   ): Promise<[Status[], boolean]> {
+    return this.loadStatuses(token, userAlias, pageSize, lastItem, "feed");
+  }
+
+  public loadMoreStoryItems(
+    token: string,
+    userAlias: string,
+    pageSize: number,
+    lastItem: Status | null
+  ): Promise<[Status[], boolean]> {
+    return this.loadStatuses(token, userAlias, pageSize, lastItem, "story");
+  }
+
+  private async loadStatuses(token: string, userAlias: string, pageSize: number,
+    lastItem: Status | null, source: "story" | "feed"): Promise<[Status[], boolean]> {
     if (!this.factory || !this.authorization) throw new Error("Status dependencies are required.");
     await this.authorization.authorize(token);
-    // Timestamp alone is ambiguous when multiple posts share a millisecond.
-    // Scope the client cursor to the requested author's story.
-    if (lastItem !== null && (
-      !isStatusId(lastItem.statusId) || !Number.isSafeInteger(lastItem.timestamp) || lastItem.timestamp < 0 ||
-      lastItem.user.alias !== userAlias
-    )) throw new Error("[Bad Request] A story cursor must identify a persisted status by the requested author.");
+    // Both lists need timestamp/ID identity. Only stories require the cursor's
+    // author to match the owner: a feed contains snapshots from many authors.
+    if (lastItem !== null) {
+      const invalidIdentity = !isStatusId(lastItem.statusId) ||
+        !Number.isSafeInteger(lastItem.timestamp) || lastItem.timestamp < 0;
+      if (source === "story" && (invalidIdentity || lastItem.user.alias !== userAlias)) {
+        throw new Error("[Bad Request] A story cursor must identify a persisted status by the requested author.");
+      }
+      if (invalidIdentity) throw new Error("[Bad Request] A feed cursor must identify a persisted status.");
+    }
     if (await this.factory.createUserDAO().getUser(userAlias) === null) throw new Error("[Bad Request] User not found.");
     const cursor = lastItem === null ? null : { timestamp: lastItem.timestamp, statusId: lastItem.statusId! };
-    const page = await this.factory.createStoryDAO().getStory(userAlias, pageSize, cursor);
+    const page = source === "story"
+      ? await this.factory.createStoryDAO().getStory(userAlias, pageSize, cursor)
+      : await this.factory.createFeedDAO().getFeed(userAlias, pageSize, cursor);
     return [page.items.map((record) => Status.fromDto(record.status)), page.nextCursor !== null];
   }
 }

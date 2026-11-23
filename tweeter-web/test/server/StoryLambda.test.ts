@@ -1,9 +1,9 @@
 /** @jest-environment node */
 /// <reference types="node" />
 // AI-assisted: see AI-ATTRIBUTION.md
-import { FakeData, Status, User } from "tweeter-shared";
+import { Status, User } from "tweeter-shared";
 import { GetStoryLambda, handler as storyHandler } from "../../../tweeter-server/src/lambda/status/GetStoryLambda";
-import { handler as feedHandler } from "../../../tweeter-server/src/lambda/status/GetFeedLambda";
+import { GetFeedLambda, handler as feedHandler } from "../../../tweeter-server/src/lambda/status/GetFeedLambda";
 import { StatusService } from "../../../tweeter-server/src/model/service/StatusService";
 
 import { getStatusService } from "../../../tweeter-server/src/lambda/config/getStatusService";
@@ -16,9 +16,9 @@ afterEach(() => composition.mockReset());
 const request = { token: "dummy-token", userAlias: "@allen", pageSize: 10, lastItem: null };
 
 describe.each([
-  { feature: "Story", handler: storyHandler, method: "loadMoreStoryItems" as const, otherMethod: "loadMoreFeedItems" as const },
-  { feature: "Feed", handler: feedHandler, method: "loadMoreFeedItems" as const, otherMethod: "loadMoreStoryItems" as const },
-])("$feature Lambda", ({ feature, handler, method, otherMethod }) => {
+  { feature: "Story", handler: storyHandler, method: "loadMoreStoryItems" as const, otherMethod: "loadMoreFeedItems" as const, Lambda: GetStoryLambda },
+  { feature: "Feed", handler: feedHandler, method: "loadMoreFeedItems" as const, otherMethod: "loadMoreStoryItems" as const, Lambda: GetFeedLambda },
+])("$feature Lambda", ({ handler, method, otherMethod, Lambda }) => {
   afterEach(() => jest.restoreAllMocks());
 
   it("reconstructs the cursor, forwards inputs, and returns status DTOs", async () => {
@@ -36,31 +36,6 @@ describe.each([
     expect(receivedCursor.statusId).toBe("cursor-a");
     expect(otherOperation).not.toHaveBeenCalled();
   });
-
-  if (feature === "Feed") {
-    it("returns the expected first page of dummy statuses", async () => {
-      const response = await handler(request);
-
-      expect(response.items).toEqual(FakeData.instance.fakeStatuses.slice(0, 10).map((status) => status.dto));
-      expect(response.hasMore).toBe(true);
-    });
-
-    it("uses a JSON cursor to advance to the next page", async () => {
-      const first = await handler(request);
-      const second = await handler({ ...request, lastItem: JSON.parse(JSON.stringify(first.items[9])) });
-
-      expect(second.items).toEqual(FakeData.instance.fakeStatuses.slice(10, 20).map((status) => status.dto));
-      expect(second.hasMore).toBe(true);
-    });
-
-    it("returns an empty final page after the last status", async () => {
-      const statuses = FakeData.instance.fakeStatuses;
-      const response = await handler({ ...request, lastItem: statuses[statuses.length - 1].dto });
-
-      expect(response.items).toEqual([]);
-      expect(response.hasMore).toBe(false);
-    });
-  }
 
   it("propagates service failures", async () => {
     jest.spyOn(StatusService.prototype, method).mockRejectedValue(new Error("Page failed"));
@@ -90,20 +65,21 @@ describe.each([
     expect(operation).not.toHaveBeenCalled();
     expect(composition).not.toHaveBeenCalled();
   });
-});
 
-describe("Persistent story Lambda composition", () => {
   it("accepts an injected service without resolving AWS dependencies", async () => {
-    const service = { loadMoreStoryItems: jest.fn().mockResolvedValue([[], false]) };
-    await expect(new GetStoryLambda(service).handle(request))
+    const service = {
+      loadMoreStoryItems: jest.fn().mockResolvedValue([[], false]),
+      loadMoreFeedItems: jest.fn().mockResolvedValue([[], false]),
+    };
+    await expect(new Lambda(service).handle(request))
       .resolves.toEqual({ success: true, message: null, items: [], hasMore: false });
-    expect(service.loadMoreStoryItems).toHaveBeenCalledWith(request.token, request.userAlias, 10, null);
+    expect(service[method]).toHaveBeenCalledWith(request.token, request.userAlias, 10, null);
     expect(composition).not.toHaveBeenCalled();
   });
 
   it("propagates authorization errors for API Gateway's 401 mapping", async () => {
     const error = new Error("[Unauthorized] Invalid or expired authentication token.");
-    composition.mockReturnValue({ loadMoreStoryItems: jest.fn().mockRejectedValue(error) } as unknown as StatusService);
-    await expect(storyHandler(request)).rejects.toBe(error);
+    jest.spyOn(StatusService.prototype, method).mockRejectedValue(error);
+    await expect(handler(request)).rejects.toBe(error);
   });
 });

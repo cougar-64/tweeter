@@ -36,7 +36,11 @@ it("caches user/follow/status services and shares one factory and authorization 
       .mockResolvedValue({ items: [], nextCursor: null });
     await expect(getStatusService().loadMoreStoryItems("token", "@actor", 10, null)).resolves.toEqual([[], false]);
     expect(getStory).toHaveBeenCalledWith("@actor", 10, null);
-    expect(authorize).toHaveBeenCalledTimes(4);
+    const getFeed = jest.spyOn(dependencies.factory.createFeedDAO(), "getFeed")
+      .mockResolvedValue({ items: [], nextCursor: null });
+    await expect(getStatusService().loadMoreFeedItems("token", "@actor", 10, null)).resolves.toEqual([[], false]);
+    expect(getFeed).toHaveBeenCalledWith("@actor", 10, null);
+    expect(authorize).toHaveBeenCalledTimes(5);
     expect(save).toHaveBeenCalledTimes(1);
     expect(lookup).toHaveBeenCalledWith("@target");
     expect(follow).toHaveBeenCalledWith("@actor", "@target");
