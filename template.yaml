@@ -261,6 +261,16 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt UsersTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt SessionsTable.Arn
 
   LoginFunction:
     Type: AWS::Serverless::Function
@@ -803,7 +813,7 @@ Resources:
           /user/get:
             post:
               summary: Get a user by alias
-              description: Looks up a dummy user by alias and returns the user DTO or null when no user exists.
+              description: Authenticates and refreshes the supplied session, then looks up a persisted user by alias and returns the public profile or null if no user exists.
               responses:
                 '200':
                   description: A success flag and a user DTO, or null if the alias was not found.
@@ -811,7 +821,12 @@ Resources:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: The token or user alias is missing or invalid.
+                  description: The token or user alias is missing or malformed.
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                '401':
+                  description: The authentication token is malformed, expired, unknown, or revoked.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
@@ -848,8 +863,15 @@ Resources:
                     responseTemplates:
                       application/json: |
                         {"errorMessage": $input.json('$.errorMessage')}
-                  # Nonempty unexpected errors only: preserve successful/default responses.
-                  '(?s)^(?!\[Bad Request\]).+':
+                  '(?s)^\[Unauthorized\].*':
+                    statusCode: '401'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {"errorMessage": $input.json('$.errorMessage')}
+                  # Exclude expected 400/401 errors from the generic 500 mapping.
+                  '(?s)^(?!\[(?:Bad Request|Unauthorized)\]).+':
                     statusCode: '500'
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"

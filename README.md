@@ -640,7 +640,8 @@ activity refresh with the same injection approach.
 `model/dao/s3/S3ImageDAO.ts` implements profile-image uploads and cleanup using
 an injected S3 client, bucket name, and region. Other concrete AWS
 implementations and service wiring are being added one feature at a time.
-Registration, login, and logout now use persisted sessions in source. Other
+Registration, login, logout, and authenticated user lookup now use persistence
+in source. UserService no longer imports FakeData. Other
 existing endpoints still use Milestone 3 FakeData or simulated behavior.
 No Milestone 4A resources have been deployed.
 
@@ -713,12 +714,13 @@ random-generator failures propagate rather than being reported as invalid
 credentials. The shared `AuthToken` timestamp remains milliseconds while stored
 session activity/expiration are seconds. No insecure random fallback is used.
 
-Registration and login use this service to create sessions, and logout uses it
-to authenticate and revoke sessions. Authorization checks are not yet connected
-to the remaining protected operations. Login and logout have 401/CORS mappings
+Registration and login use this service to create sessions, logout uses it
+to authenticate and revoke sessions, and user lookup uses it to authorize and
+refresh activity. Authorization checks are not yet connected to follow/status
+operations. Login, logout, and user lookup have 401/CORS mappings
 with nonoverlapping 500 patterns; equivalent mappings for other protected
 operations remain part of their authentication wiring. All three authentication
-Lambdas use composition that passes the 30-minute configuration.
+Lambdas and user lookup use composition that passes the 30-minute configuration.
 Service tests use mock session DAOs plus a stateful in-memory double to exercise
 activity refresh, inactivity expiration, and revocation:
 `npm test --workspace tweeter-web -- --runInBand test/server/AuthorizationService.test.ts`.
@@ -802,6 +804,24 @@ behavior has not yet been verified. Service tests use stateful session DAO
 doubles to check revocation, session isolation, expiration, and failures:
 `npm test --workspace tweeter-web -- --runInBand test/server/LogoutService.test.ts test/server/LogoutLambda.test.ts`.
 
+`UserService.getUser` now authenticates and refreshes the caller's session before
+looking up the requested alias in UserDAO. Any signed-in user can view another
+user's public profile. Results reconstruct a User using only the public DTO;
+password hashes and stored counts are not returned. Missing aliases still return
+null successfully. Expired/unknown/revoked tokens are rejected before profile
+storage is accessed, including tokens revoked by UserService.logout. Session and
+user-store errors propagate instead of being treated as missing users.
+
+GetUserLambda validates before resolving the cached user service and accepts an
+injected service for isolated tests. GetUserFunction has GetItem only on
+UsersTable and GetItem/UpdateItem only on SessionsTable. Its API mapping returns
+400 for malformed request fields, 401 for invalid sessions, and generic 500 for
+unexpected failures, all with CORS. Live user-lookup tests still use dummy tokens
+and must migrate to authenticated persisted fixtures before deployment. Tests
+exercise public-profile reconstruction, lookups of another user, unknown aliases,
+activity refresh, expiration, logout revocation, and error propagation:
+`npm test --workspace tweeter-web -- --runInBand test/server/GetUserService.test.ts test/server/GetUserLambda.test.ts`.
+
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
 | UsersTable | alias | — | Profile, password hash, follower/followee counts |
@@ -816,7 +836,7 @@ avoid collisions between stacks. Tables and the image bucket are retained on
 stack deletion/replacement. They must be removed separately if no longer needed.
 The authentication resource environment variables are defined globally; follow,
 story, and feed settings and least-privilege data permissions will be added as
-each concrete DAO is connected. RegisterLambda, LoginLambda, and LogoutLambda
+each concrete DAO is connected. RegisterLambda, LoginLambda, LogoutLambda, and GetUserLambda
 now use the AWS factory.
 
 `SessionInactivityMinutes` defaults to 30 and is connected to registration/login's

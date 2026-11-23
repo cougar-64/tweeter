@@ -1,5 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { AuthToken, FakeData, User } from "tweeter-shared";
+import { AuthToken, User } from "tweeter-shared";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
@@ -12,10 +12,10 @@ const imageContentTypes = new Map([
 ]);
 
 export class UserService {
-  // Optional only while the remaining Milestone 3 methods migrate to DAOs.
+  // Production composition supplies both dependencies; guards reject unconfigured use.
   public constructor(
     private readonly factory?: AuthenticationDAOFactory,
-    private readonly authorization?: Pick<AuthorizationService, "createSession" | "revokeSession">
+    private readonly authorization?: Pick<AuthorizationService, "createSession" | "revokeSession" | "authorize">
   ) {}
 
   public async logout(token: string): Promise<void> {
@@ -96,8 +96,12 @@ export class UserService {
     return [User.fromDto(record.profile), token];
   }
 
-  public async getUser(_token: string, alias: string): Promise<User | null> {
-    // Milestone 3 uses dummy users; token verification comes later.
-    return FakeData.instance.findUserByAlias(alias);
+  public async getUser(token: string, alias: string): Promise<User | null> {
+    if (!this.factory || !this.authorization) {
+      throw new Error("User lookup dependencies are required.");
+    }
+    await this.authorization.authorize(token);
+    const record = await this.factory.createUserDAO().getUser(alias);
+    return record === null ? null : User.fromDto(record.profile);
   }
 }
