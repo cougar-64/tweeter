@@ -1,5 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import type { StatusDto } from "../dto/StatusDto";
+import { isStatusId } from "../dto/StatusDto";
 import { PostSegment, Type } from "./PostSegment";
 import { User } from "./User";
 import { format } from "date-fns";
@@ -9,12 +10,15 @@ export class Status {
   private _user: User;
   private _timestamp: number;
   private _segments: PostSegment[];
+  private readonly _statusId?: string;
 
-  public constructor(post: string, user: User, timestamp: number) {
+  public constructor(post: string, user: User, timestamp: number, statusId?: string) {
+    if (statusId !== undefined && !isStatusId(statusId)) throw new Error("Invalid status ID.");
     this._post = post;
     this._user = user;
     this._timestamp = timestamp;
     this._segments = this.getPostSegments(post);
+    this._statusId = statusId;
   }
 
   private getPostSegments(post: string): PostSegment[] {
@@ -175,6 +179,10 @@ export class Status {
     return this._timestamp;
   }
 
+  public get statusId(): string | undefined {
+    return this._statusId;
+  }
+
   public get formattedDate(): string {
     let date: Date = new Date(this.timestamp);
     return format(date, "MMMM dd, yyyy HH:mm:ss");
@@ -193,6 +201,9 @@ export class Status {
   }
 
   public equals(other: Status): boolean {
+    if (this.statusId !== undefined || other.statusId !== undefined) {
+      return this.statusId !== undefined && this.statusId === other.statusId;
+    }
     return (
       this._user.equals(other.user) &&
       this._timestamp === other._timestamp &&
@@ -211,6 +222,7 @@ export class Status {
           _imageUrl: string;
         };
         _timestamp: number;
+        _statusId?: string;
         _segments: PostSegment[];
       } = JSON.parse(json);
       return new Status(
@@ -222,6 +234,7 @@ export class Status {
           jsonObject._user._imageUrl,
         ),
         jsonObject._timestamp,
+        jsonObject._statusId,
       );
     } else {
       return null;
@@ -233,11 +246,14 @@ export class Status {
   }
 
   public get dto(): StatusDto {
-    return { post: this.post, user: this.user.dto, timestamp: this.timestamp };
+    return {
+      post: this.post, user: this.user.dto, timestamp: this.timestamp,
+      ...(this.statusId === undefined ? {} : { statusId: this.statusId }),
+    };
   }
 
   public static fromDto(dto: StatusDto): Status {
-    return new Status(dto.post, User.fromDto(dto.user), dto.timestamp);
+    return new Status(dto.post, User.fromDto(dto.user), dto.timestamp, dto.statusId);
   }
 
   public get imageUrl() {

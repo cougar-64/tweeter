@@ -10,7 +10,7 @@ import { DynamoDBStatusStore, statusPostKey } from "../../../tweeter-server/src/
 const status = (id = "post-a", timestamp = 1000, alias = "@amy"): StoredStatus => ({
   statusId: id, timestamp,
   status: {
-    post: `Post ${id}: @bob https://example.com`, timestamp,
+    post: `Post ${id}: @bob https://example.com`, timestamp, statusId: id,
     user: { alias, firstName: "Amy", lastName: "Ames", imageUrl: "https://example.com/amy.png" },
   },
 });
@@ -123,9 +123,21 @@ describe("DynamoDBStoryDAO", () => {
     await expect(dao.getStory("@amy", 10, null)).resolves.toEqual({ items: [record], nextCursor: null });
   });
 
+  it("adds the authoritative record ID to legacy status payloads on writes and reads", async () => {
+    const record = status();
+    const { statusId: _id, ...legacy } = record.status;
+    const send = jest.spyOn(client, "send").mockImplementation(async () => ({ $metadata: {} }));
+    await dao.putStatus({ ...record, status: legacy });
+    const row = (send.mock.calls[0][0] as PutCommand).input.Item!;
+    expect(row.status.statusId).toBe(record.statusId);
+    send.mockImplementation(async () => ({ Items: [{ ...row, status: legacy }], $metadata: {} }));
+    await expect(dao.getStory("@amy", 10, null)).resolves.toEqual({ items: [record], nextCursor: null });
+  });
+
   it.each([
     { ...status(), timestamp: 1001 },
     { ...status(), statusId: "invalid#id" },
+    { ...status(), statusId: "different-valid-id" },
     { ...status(), status: { ...status().status, post: " " } },
     { ...status(), status: { ...status().status, user: { ...status().status.user, alias: " " } } },
   ])("rejects invalid status writes before contacting DynamoDB", async (record) => {

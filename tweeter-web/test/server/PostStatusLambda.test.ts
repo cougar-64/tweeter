@@ -43,6 +43,8 @@ describe("Post Status Lambda", () => {
     ["negative timestamp", { ...request, status: { ...status.dto, timestamp: -1 } }],
     ["non-string timestamp", { ...request, status: { ...status.dto, timestamp: "0" } }],
     ["nonfinite timestamp", { ...request, status: { ...status.dto, timestamp: Infinity } }],
+    ["fractional timestamp", { ...request, status: { ...status.dto, timestamp: 0.5 } }],
+    ["invalid optional status ID", { ...request, status: { ...status.dto, statusId: "bad#id" } }],
     ["blank author alias", { ...request, status: { ...status.dto, user: { ...status.user.dto, alias: " " } } }],
   ])("rejects %s before calling the service", async (_description, invalidRequest) => {
     const operation = jest.spyOn(StatusService.prototype, "postStatus");

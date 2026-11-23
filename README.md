@@ -957,9 +957,9 @@ is deferred until the remaining features are implemented.
 
 Stories and feeds use a fixed-width timestamp followed by a unique status ID
 as `postKey`, queried newest first. DAO cursors carry timestamp and status ID,
-never DynamoDB key objects. The current API's last-status DTO has no ID: the
-status feature will need to carry the ID through shared DTOs and client/server
-pagination before these DAOs can be wired. The feed DAO batches recipients,
+never DynamoDB key objects. StatusDto/Status now preserve optional status IDs
+through client/server pagination. New posts and legacy data may omit the ID;
+persisted reads supply it. Status service wiring remains pending. The feed DAO batches recipients,
 retries unprocessed writes, and rejects incomplete delivery. Reads query stored
 feed entries. Part A delivery is synchronous; durable background delivery and
 performance improvements belong to Part B.
@@ -992,6 +992,28 @@ malformed input/storage, and failures. Existing relationship pagination tests
 also pass after extraction:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBStoryDAO.test.ts test/server/DynamoDBFollowDAO.test.ts`.
 These tests use mocked SDK responses and an in-memory row map, not DynamoDB.
+
+`StatusDto` has an optional readonly `statusId`, and `PersistedStatusDto` requires
+it. Shared `isStatusId`, `isStatusDto`, and `isPersistedStatusDto` guards validate
+ID shape and nonnegative safe-integer millisecond timestamps. Status exposes an
+immutable ID through its optional fourth constructor argument/getter. DTO and
+local-storage JSON conversions preserve existing IDs without generating them.
+Legacy DTOs/JSON and new unsaved posts remain ID-free with their original shape.
+Identified statuses compare identity by their globally unique ID; ID-free legacy
+statuses retain their original author/timestamp/post equality. An identified
+status is distinct from an otherwise identical legacy status.
+
+The shared status store includes its authoritative record ID in persisted status
+DTOs, normalizes older nested payloads missing that ID, and rejects a conflicting
+nested ID rather than returning ambiguous cursors. ID shape validation is shared
+with the API/domain layer. Client story/feed services, facade reconstruction,
+Lambda DTO conversion, and last-item JSON requests retain IDs without changing
+their existing request/response containers. Guards still accept legacy data but
+reject malformed supplied IDs and fractional/unsafe timestamps. Posting's server
+ID generation and cursor requirements for database-backed services will be wired
+in the remaining status increments; clients do not invent IDs on conversion.
+Model and transport tests run with:
+`npm test --workspace tweeter-web -- --runInBand test/model/StatusIdentity.test.ts test/net/Story.test.ts test/server/StoryLambda.test.ts`.
 
 `model/dao/dynamodb/DynamoDBFeedDAO.ts` now stores precomputed public status
 snapshots under each recipient's `ownerAlias` and the shared post key. It retains

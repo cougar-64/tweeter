@@ -11,7 +11,7 @@ import { DynamoDBStatusStore } from "../../../tweeter-server/src/model/dao/dynam
 
 const status = (id = "post-a", timestamp = 1000, alias = "@author"): StoredStatus => ({
   statusId: id, timestamp,
-  status: { post: `Post ${id}`, timestamp, user: { alias, firstName: "Test", lastName: "Author", imageUrl: "https://example.com/profile.png" } },
+  status: { post: `Post ${id}`, timestamp, statusId: id, user: { alias, firstName: "Test", lastName: "Author", imageUrl: "https://example.com/profile.png" } },
 });
 const recipients = (size: number) => Array.from({ length: size }, (_, i) => `@reader${i}`);
 type Row = ReturnType<DynamoDBStatusStore["toItem"]>;

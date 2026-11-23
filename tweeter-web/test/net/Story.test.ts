@@ -37,12 +37,30 @@ describe.each([
     await expect(new ServerFacade()[facadeMethod](request)).resolves.toEqual([[], false]);
   });
 
+  it("preserves IDs for equal-timestamp posts through facade reconstruction and the next JSON cursor", async () => {
+    const identified = [{ ...dto, statusId: "post-a" }, { ...dto, statusId: "post-b" }];
+    const operation = jest.spyOn(ClientCommunicator.prototype, "doPost")
+      .mockResolvedValueOnce(new PagedStatusItemResponse(true, null, identified, true))
+      .mockResolvedValueOnce(new PagedStatusItemResponse(true, null, [], false));
+    const service = new StatusService(new ServerFacade());
+    const token = new AuthToken(request.token, 0);
+    const [items] = await service[serviceMethod](token, request.userAlias, 10, null);
+    expect(items.map((item) => item.statusId)).toEqual(["post-a", "post-b"]);
+    expect(items[0].equals(items[1])).toBe(false);
+    await expect(service[serviceMethod](token, request.userAlias, 10, items[1])).resolves.toEqual([[], false]);
+    const next = JSON.parse(JSON.stringify(operation.mock.calls[1][0])) as PagedStatusItemRequest;
+    expect(next.lastItem).toEqual(identified[1]);
+  });
+
   it.each([
     { items: undefined, hasMore: true }, { items: [null], hasMore: true },
     { items: [{ ...dto, user: {} }], hasMore: true }, { items: [{ ...dto, timestamp: "0" }], hasMore: true },
     { items: [{ ...dto, timestamp: NaN }], hasMore: true }, { items: [{ ...dto, timestamp: -1 }], hasMore: true },
     { items: [{ ...dto, post: null }], hasMore: true }, { items: [dto], hasMore: "false" },
     { items: [dto], hasMore: undefined },
+    { items: [{ ...dto, statusId: null }], hasMore: true },
+    { items: [{ ...dto, statusId: "bad#id" }], hasMore: true },
+    { items: [{ ...dto, timestamp: 0.5 }], hasMore: true },
   ])("rejects malformed page data %p", async (page) => {
     const response = { success: true, message: null, ...page };
     jest.spyOn(ClientCommunicator.prototype, "doPost").mockResolvedValue(response);

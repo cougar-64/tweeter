@@ -13,8 +13,8 @@ describe.each([
   afterEach(() => jest.restoreAllMocks());
 
   it("reconstructs the cursor, forwards inputs, and returns status DTOs", async () => {
-    const cursor = new Status("Hello @amy", new User("Allen", "Anderson", "@allen", "image.png"), 0);
-    const next = new Status("Another post", cursor.user, 123);
+    const cursor = new Status("Hello @amy", new User("Allen", "Anderson", "@allen", "image.png"), 0, "cursor-a");
+    const next = new Status("Another post", cursor.user, 123, "next-b");
     const operation = jest.spyOn(StatusService.prototype, method).mockResolvedValue([[next], false]);
     const otherOperation = jest.spyOn(StatusService.prototype, otherMethod);
 
@@ -24,6 +24,7 @@ describe.each([
     const receivedCursor = operation.mock.calls[0][3]!;
     expect(receivedCursor.user).toBeInstanceOf(User);
     expect(receivedCursor.equals(cursor)).toBe(true);
+    expect(receivedCursor.statusId).toBe("cursor-a");
     expect(otherOperation).not.toHaveBeenCalled();
   });
 
@@ -66,6 +67,8 @@ describe.each([
     ["non-string post", { ...request, lastItem: { ...validCursor, post: 123 } }],
     ["negative timestamp", { ...request, lastItem: { ...validCursor, timestamp: -1 } }],
     ["nonfinite timestamp", { ...request, lastItem: { ...validCursor, timestamp: Infinity } }],
+    ["fractional timestamp", { ...request, lastItem: { ...validCursor, timestamp: 0.5 } }],
+    ["invalid status ID", { ...request, lastItem: { ...validCursor, statusId: "bad#id" } }],
     ["missing author", { ...request, lastItem: { ...validCursor, user: null } }],
     ["blank author alias", { ...request, lastItem: { ...validCursor, user: { ...validCursor.user, alias: " " } } }],
   ])("rejects %s before calling the service", async (_description, invalidRequest) => {

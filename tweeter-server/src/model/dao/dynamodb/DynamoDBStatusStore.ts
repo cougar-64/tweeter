@@ -1,7 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
-import { isStatusDto } from "tweeter-shared";
-import type { StatusDto } from "tweeter-shared";
+import { isStatusDto, isStatusId } from "tweeter-shared";
+import type { PersistedStatusDto, StatusDto } from "tweeter-shared";
 import type { Page, StatusCursor, StoredStatus } from "../DAOModels";
 import { queryPage } from "./queryPage";
 
@@ -9,13 +9,14 @@ function isCursor(value: unknown): value is StatusCursor {
   if (typeof value !== "object" || value === null) return false;
   const cursor = value as Partial<StatusCursor>;
   return typeof cursor.timestamp === "number" && Number.isSafeInteger(cursor.timestamp) && cursor.timestamp >= 0
-    && typeof cursor.statusId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(cursor.statusId);
+    && isStatusId(cursor.statusId);
 }
 
 function isStoredStatus(value: unknown): value is StoredStatus {
   if (!isCursor(value)) return false;
   const status = (value as Partial<StoredStatus>).status;
-  return isStatusDto(status) && status.timestamp === value.timestamp && status.post.trim().length > 0;
+  return isStatusDto(status) && status.timestamp === value.timestamp && status.post.trim().length > 0
+    && (status.statusId === undefined || status.statusId === value.statusId);
 }
 
 /** Sixteen digits cover every nonnegative JavaScript safe integer timestamp. */
@@ -24,9 +25,9 @@ export function statusPostKey(cursor: StatusCursor): string {
   return `${String(cursor.timestamp).padStart(16, "0")}#${cursor.statusId}`;
 }
 
-function publicStatus(status: StatusDto): StatusDto {
+function publicStatus(status: StatusDto, statusId: string): PersistedStatusDto {
   return {
-    post: status.post, timestamp: status.timestamp,
+    post: status.post, timestamp: status.timestamp, statusId,
     user: {
       alias: status.user.alias, firstName: status.user.firstName,
       lastName: status.user.lastName, imageUrl: status.user.imageUrl,
@@ -55,7 +56,7 @@ export class DynamoDBStatusStore {
       postKey: statusPostKey(record),
       statusId: record.statusId,
       timestamp: record.timestamp,
-      status: publicStatus(record.status),
+      status: publicStatus(record.status, record.statusId),
     };
   }
 
@@ -78,7 +79,7 @@ export class DynamoDBStatusStore {
         || (this.ownerKey === "authorAlias" && item.status.user.alias !== ownerAlias)) {
         throw new Error("Invalid stored status record.");
       }
-      return { statusId: item.statusId, timestamp: item.timestamp, status: publicStatus(item.status) };
+      return { statusId: item.statusId, timestamp: item.timestamp, status: publicStatus(item.status, item.statusId) };
     }, ({ timestamp, statusId }) => ({ timestamp, statusId }));
   }
 }
