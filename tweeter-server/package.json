@@ -9,9 +9,11 @@
     "@aws-sdk/client-dynamodb": "^3.1172.0",
     "@aws-sdk/client-s3": "^3.1173.0",
     "@aws-sdk/lib-dynamodb": "^3.1172.0",
+    "bcryptjs": "^3.0.3",
     "tweeter-shared": "file:../tweeter-shared"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "typescript": "^5.0.2"
   }
 }

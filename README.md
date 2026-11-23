@@ -639,17 +639,17 @@ lookup using an injected document client and table name.
 activity refresh with the same injection approach.
 `model/dao/s3/S3ImageDAO.ts` implements profile-image uploads and cleanup using
 an injected S3 client, bucket name, and region. Other concrete AWS
-implementations and service wiring will be added one feature at a time,
-starting with registration, login, and logout. The existing
-Milestone 3 endpoints still use FakeData; these declarations do not yet replace
-their behavior. No Milestone 4A resources have been deployed.
+implementations and service wiring are being added one feature at a time.
+Registration now uses persistence and automatic session creation in source;
+login, logout, and the other existing endpoints still use Milestone 3 FakeData
+or simulated behavior. No Milestone 4A resources have been deployed.
 
 The user DAO stores profile fields, a service-supplied password hash, and initial
 zero follow counts in a flat item keyed by alias. Conditional creation returns
 false if the alias exists, preserving existing data; other database errors
 propagate. Strongly consistent lookups return a separate profile DTO, hash, and
 counts, or null for a missing alias. Invalid stored records are rejected.
-Hashing and credential checks belong to the upcoming authentication services.
+Registration hashes passwords; credential checks will be added with login.
 The isolated DAO tests mock the AWS client and do not contact DynamoDB:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBUserDAO.test.ts`.
 
@@ -676,7 +676,7 @@ deletes the same object key and permits repeated deletion in the unversioned
 bucket. Invalid path-segment IDs, empty bytes, and non-image content types are
 rejected; AWS failures propagate. The content-type check does not inspect image
 file contents. Base64 decoding, format selection, ID generation, and registration
-rollback belong to the upcoming registration flow. Isolated tests mock S3:
+cleanup orchestration belong to the registration flow. Isolated tests mock S3:
 `npm test --workspace tweeter-web -- --runInBand test/server/S3ImageDAO.test.ts`.
 
 `model/dao/aws/AWSDAOFactory.ts` provides the three implemented authentication
@@ -713,13 +713,51 @@ random-generator failures propagate rather than being reported as invalid
 credentials. The shared `AuthToken` timestamp remains milliseconds while stored
 session activity/expiration are seconds. No insecure random fallback is used.
 
-This service is not yet connected to the existing user/follow/status services
-or Lambda handlers. API Gateway's 401/CORS mappings and the exclusion of that
+Registration uses this service to create sessions; authorization checks are not
+yet connected to existing protected operations. API Gateway's 401/CORS mappings and the exclusion of that
 prefix from its current 500 pattern remain part of the authentication wiring
-increment. The 30-minute configuration will be passed by Lambda composition.
+increment. Registration's Lambda composition passes the 30-minute configuration.
 Service tests use mock session DAOs plus a stateful in-memory double to exercise
 activity refresh, inactivity expiration, and revocation:
 `npm test --workspace tweeter-web -- --runInBand test/server/AuthorizationService.test.ts`.
+
+`UserService.register` now checks for an existing alias, hashes the exact password
+using bcryptjs with cost 12 (including a generated salt), uploads the decoded
+image with a UUID filename, conditionally creates the user, and persists a
+session through AuthorizationService before returning the new user/token.
+Passwords over 72 UTF-8 bytes are rejected to prevent bcrypt truncation.
+Supported image extensions are png, jpg/jpeg, gif, webp, and bmp, with matching
+content-type metadata. Extensions are case-insensitive and may start with a dot.
+Base64 must be canonical; metadata checks do not inspect the image file itself.
+No relationships or feed entries are created for a new account. The actual
+blank-feed client experience awaits the feed endpoint's migration from FakeData.
+
+The early alias lookup avoids unnecessary hashing/uploads; conditional user
+creation also prevents racing registrations from replacing an existing account.
+A confirmed duplicate after upload deletes only that attempt's image. Cleanup
+failure produces an infrastructure error retaining both causes. If a user write
+throws with an uncertain outcome, the upload remains because the user may have
+been saved. A session failure after user creation likewise preserves the account
+and photo for subsequent login once persistent login is implemented. These
+failures can leave orphaned uploads or a saved account without a returned
+session; multi-resource transactional rollback is not implemented.
+
+`lambda/config/getUserService.ts` lazily constructs and caches the AWS factory,
+authorization service, and user service. RegisterLambda validates before resolving
+this composition and also accepts an injected service for tests. Its IAM policy
+permits only GetItem/PutItem on UsersTable, PutItem on SessionsTable, and
+PutObject/DeleteObject under the bucket's image prefix. Registration has 512 MB
+and a 30-second timeout to give bcrypt and persistence enough execution time;
+actual AWS latency has not yet been measured. Invalid input/duplicate aliases
+use the existing HTTP 400/CORS mapping. Other failures use the generic 500 mapping.
+
+UserService's dependencies remain optional temporarily for unmigrated methods;
+registration requires injection and never falls back to FakeData. New service
+tests and updated Lambda tests cover persistence delegation, actual bcrypt
+verification, automatic sign-in, duplicate races, failures, and cleanup:
+`npm test --workspace tweeter-web -- --runInBand test/server/RegistrationService.test.ts test/server/RegisterLambda.test.ts`.
+The old live registration integration tests still assert Milestone 3 data and
+must be migrated to unique, persisted fixtures before deploying this change.
 
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
@@ -735,10 +773,10 @@ avoid collisions between stacks. Tables and the image bucket are retained on
 stack deletion/replacement. They must be removed separately if no longer needed.
 The authentication resource environment variables are defined globally; follow,
 story, and feed settings and least-privilege data permissions will be added as
-each concrete DAO is connected. Current Lambdas do not yet use the AWS factory.
+each concrete DAO is connected. RegisterLambda now uses the AWS factory.
 
-`SessionInactivityMinutes` defaults to 30 and will be connected to the
-AuthorizationService during authentication implementation. Session times use
+`SessionInactivityMinutes` defaults to 30 and is connected to registration's
+AuthorizationService. Session times use
 whole Unix seconds. Each authenticated operation must atomically check that the
 session exists and `expiresAt > now`, then refresh last activity and expiration.
 Concurrent refreshes must not shorten expiration, and logout must not allow an

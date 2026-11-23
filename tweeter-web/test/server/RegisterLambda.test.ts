@@ -1,7 +1,10 @@
+/** @jest-environment node */
+/// <reference types="node" />
 // AI-assisted: see AI-ATTRIBUTION.md
-import { AuthToken, FakeData, User } from "tweeter-shared";
-import { handler } from "../../../tweeter-server/src/lambda/user/RegisterLambda";
+import { AuthToken, User } from "tweeter-shared";
+import { handler, RegisterLambda } from "../../../tweeter-server/src/lambda/user/RegisterLambda";
 import { UserService } from "../../../tweeter-server/src/model/service/UserService";
+import * as composition from "../../../tweeter-server/src/lambda/config/getUserService";
 
 const request = {
   firstName: "Test", lastName: "User", alias: "@test-user", password: "dummy-password",
@@ -9,6 +12,7 @@ const request = {
 };
 
 describe("Register Lambda", () => {
+  beforeEach(() => jest.spyOn(composition, "getUserService").mockReturnValue(new UserService()));
   afterEach(() => jest.restoreAllMocks());
 
   it("passes all registration fields to register and returns user/token DTOs", async () => {
@@ -25,20 +29,14 @@ describe("Register Lambda", () => {
     expect(login).not.toHaveBeenCalled();
   });
 
-  it("preserves dummy registration without storing the requested user or image", async () => {
-    const response = await handler(request);
-
-    expect(response.success).toBe(true);
-    expect(response.user).toEqual(FakeData.instance.firstUser!.dto);
-    expect(response.user.alias).toBe("@allen");
-    expect(response.authToken).toEqual(FakeData.instance.authToken.dto);
-    expect(FakeData.instance.findUserByAlias(request.alias)).toBeNull();
-  });
-
-  it("rejects registration if FakeData has no first user", async () => {
-    jest.spyOn(FakeData.instance, "firstUser", "get").mockReturnValue(null);
-
-    await expect(handler(request)).rejects.toThrow("Invalid registration");
+  it("supports service injection without constructing AWS dependencies", async () => {
+    const user = new User("Test", "User", "@test-user", "https://example.com/profile.png");
+    const token = new AuthToken("test-token", 123);
+    const service = { register: jest.fn().mockResolvedValue([user, token]) };
+    await expect(new RegisterLambda(service).handle(request)).resolves.toEqual({
+      success: true, message: null, user: user.dto, authToken: token.dto,
+    });
+    expect(composition.getUserService).not.toHaveBeenCalled();
   });
 
   it("propagates service failures", async () => {
@@ -64,5 +62,6 @@ describe("Register Lambda", () => {
 
     await expect(handler(invalidRequest)).rejects.toThrow("[Bad Request]");
     expect(operation).not.toHaveBeenCalled();
+    expect(composition.getUserService).not.toHaveBeenCalled();
   });
 });

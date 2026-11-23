@@ -285,8 +285,23 @@ Resources:
       Runtime: nodejs24.x
       Architectures:
         - arm64
-      MemorySize: 128
-      Timeout: 10
+      MemorySize: 512
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+              Resource: !GetAtt UsersTable.Arn
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt SessionsTable.Arn
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub '${ProfileImagesBucket.Arn}/image/*'
 
   LogoutFunction:
     Type: AWS::Serverless::Function
@@ -886,7 +901,7 @@ Resources:
           /user/register:
             post:
               summary: Register a user
-              description: Validates registration fields and a Base64 image, then returns the first dummy user and a dummy token. Does not store a user or image in Milestone 3.
+              description: Registers a unique alias with a bcrypt password hash and S3 profile image, persists a session, and returns the new user and authentication token.
               responses:
                 '200':
                   description: A success flag, user DTO, and authentication token DTO.
@@ -894,7 +909,7 @@ Resources:
                     Access-Control-Allow-Origin:
                       type: string
                 '400':
-                  description: A required registration field is missing or invalid.
+                  description: A registration field is missing or invalid, the password exceeds 72 UTF-8 bytes, or the alias is already registered.
                   headers:
                     Access-Control-Allow-Origin:
                       type: string
