@@ -645,6 +645,12 @@ in source. UserService no longer imports FakeData. Other
 existing endpoints still use Milestone 3 FakeData or simulated behavior.
 No Milestone 4A resources have been deployed.
 
+`model/dao/dynamodb/DynamoDBFollowDAO.ts` now implements the complete FollowDAO
+storage contract, but is not yet wired into the factory or FollowService.
+It receives the shared document client, relationship/user table names, and
+optional reverse-index name (default `FollowersIndex`). The next increment will
+connect relationship services, authentication, resource configuration, and IAM.
+
 The user DAO stores profile fields, a service-supplied password hash, and initial
 zero follow counts in a flat item keyed by alias. Conditional creation returns
 false if the alias exists, preserving existing data; other database errors
@@ -849,11 +855,34 @@ token. DynamoDB TTL is cleanup, not authorization: expired records can remain
 for days, so the server must reject them even before deletion.
 See [AWS TTL behavior](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html).
 
-Relationship writes must maintain both user counts and the relationship
-atomically, including idempotent repeated follows/unfollows. The reverse index
-supports follower pagination; as a global secondary index, its results may lag
-recent writes. Profile lookup remains separate from alias pagination so that
-relationships do not expose password hashes.
+The follow DAO updates the relationship, the follower's followee count, and the
+followee's follower count in one transaction. It guards against overwriting a
+relationship on follow, deleting a missing relationship on unfollow, creating
+nonexistent user rows, negative counts, and integer overflow. A unique transaction
+request token supports SDK retries without applying count updates twice. A
+confirmed relationship-condition failure becomes a no-op only after checking
+both users' stored counts. Counter invariant failures, transaction conflicts,
+throttling, missing cancellation details, and other storage failures propagate.
+Missing users produce `[Bad Request] User not found.` Self-follow/unfollow is
+rejected before sending a transaction; self following-status returns false.
+
+Both mutation directions share one helper, and both list directions share one
+query/pagination helper. Followees query the primary table consistently; followers
+query the reverse global secondary index with eventual consistency, so its
+results can lag recent writes. Counts read the stored user counters with a
+projection excluding credentials. List queries retrieve aliases in ascending
+order with a one-item lookahead, following internal DynamoDB response boundaries
+as needed. The public cursor is the last returned alias, keeping the extra
+lookahead item available on the next request. Exhausted pages return null cursors.
+Profile lookup remains separate from alias pagination so relationships do not
+expose password hashes. Isolated tests exercise commands and simulated database
+responses; live transaction atomicity and index behavior remain unverified:
+`npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFollowDAO.test.ts`.
+
+Before milestone completion, review duplication across the completed services,
+Lambda composition/handlers, DAO pagination/retries, and test fixtures. The follow
+DAO already shares its substantial mutation and query logic; a broader refactor
+is deferred until the remaining features are implemented.
 
 Stories and feeds use a fixed-width timestamp followed by a unique status ID
 as `postKey`, queried newest first. DAO cursors carry timestamp and status ID,
