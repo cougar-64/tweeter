@@ -782,8 +782,9 @@ registration requires injection and never falls back to FakeData. New service
 tests and updated Lambda tests cover persistence delegation, actual bcrypt
 verification, automatic sign-in, duplicate races, failures, and cleanup:
 `npm test --workspace tweeter-web -- --runInBand test/server/RegistrationService.test.ts test/server/RegisterLambda.test.ts`.
-The old live registration integration tests still assert Milestone 3 data and
-must be migrated to unique, persisted fixtures before deploying this change.
+The live registration suite now uses unique aliases and verifies persisted profiles,
+automatic sign-in, empty lists/counts, image bytes from S3, duplicate rejection, and
+subsequent login. It has been compiled locally but awaits deployed verification.
 
 `UserService.login` now looks up the exact alias, compares the supplied password
 with the stored bcrypt hash, reconstructs the public user profile, and creates a
@@ -800,8 +801,9 @@ UsersTable and PutItem on SessionsTable. Like registration, it has 512 MB and a
 incorrect credentials to 401, and unexpected errors to a generic 500, each with
 CORS. The 500 expression excludes both expected error prefixes. Configuration
 and regex checks are local; deployed HTTP status codes and CORS still need live
-verification. The old live login integration tests still assert Milestone 3
-dummy credentials/results and must be migrated before deploying this source.
+verification. The live login suite now uses fixture credentials and checks
+independent sessions, wrong/missing credentials, and 400/401 CORS responses;
+it has been compiled locally and awaits deployment.
 Login service tests include real bcrypt comparisons, fresh-session persistence,
 wrong/missing credentials, exact password handling, and infrastructure failures:
 `npm test --workspace tweeter-web -- --runInBand test/server/LoginService.test.ts test/server/LoginLambda.test.ts`.
@@ -820,9 +822,9 @@ LogoutFunction has GetItem/UpdateItem/DeleteItem permissions only on
 SessionsTable, matching session validation/refresh and deletion. Request-shape
 errors map to 400, malformed/expired/unknown/revoked tokens to 401, and storage
 failures to a generic 500, all with CORS. Local regex checks verify that expected
-400/401 errors do not also match 500. The old live logout tests use dummy tokens
-and must be migrated to real sessions before deployment; live status/CORS
-behavior has not yet been verified. Service tests use stateful session DAO
+400/401 errors do not also match 500. The live logout suite now uses real login
+tokens and checks that both protected requests and repeated logout fail after
+revocation; live status/CORS behavior has not yet been verified. Service tests use stateful session DAO
 doubles to check revocation, session isolation, expiration, and failures:
 `npm test --workspace tweeter-web -- --runInBand test/server/LogoutService.test.ts test/server/LogoutLambda.test.ts`.
 
@@ -1079,7 +1081,7 @@ pagination through 13 statuses as pages of 10, 3, and 0:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFeedDAO.test.ts`.
 No live delivery/pagination has been verified. Jest's TypeScript transform now
 explicitly includes Node and Jest types alongside the existing Vite types, so
-mixed client/server test runs can resolve Node modules consistently. All 792
+mixed client/server test runs can resolve Node modules consistently. All 797
 offline tests pass with `npm test --workspace tweeter-web -- --runInBand`.
 
 `StatusService.postStatus` now authorizes the token, loads the session owner's
@@ -1164,8 +1166,9 @@ empty/missing owners, invalid/legacy cursors, continuation flags, authentication
 and storage errors. Story tests also run against the shared implementation:
 `npm test --workspace tweeter-web -- --runInBand test/server/FeedService.test.ts test/server/StoryService.test.ts test/server/StoryLambda.test.ts test/server/AWSComposition.test.ts`.
 No server source uses FakeData now. Story/feed live tests now use persisted fixtures;
-the remaining live integration suites still need migration from Milestone 3
-assumptions. Live populated tabs and browser scrolling remain unverified.
+login, registration, logout, and user lookup have also been migrated.
+Relationship, posting, and the legacy ServerFacade live suites still need migration
+from Milestone 3 assumptions. Live populated tabs and browser scrolling remain unverified.
 The server duplication review is documented above.
 
 Profile images use the `image/` prefix in ProfileImagesBucket. A bucket policy
@@ -1185,10 +1188,27 @@ password. They log in through the real API and revoke their own session afterwar
 no dummy tokens, default deployed endpoint, or hard-coded passwords remain in
 these two suites. Tests compare exact persisted snapshots, pagination and IDs,
 author/owner isolation, empty pages, invalid-token 401, malformed/legacy-cursor 400,
-and CORS/preflight behavior. Additional live authentication/relationship/mutation
-suite migration and session expiration/activity/logout checks remain pending.
-The entire live integration test command still includes older Milestone 3 suites;
-run only the two migrated suites using the command below until those are updated.
+and CORS/preflight behavior. Login, Register, Logout, and GetUser also use persisted
+fixtures through `test/integration/support/liveTestContext.ts`. This shared context
+loads and validates explicit configuration/manifest data, tracks acquired sessions,
+and revokes only sessions still active at cleanup. All six migrated suites share
+HTTP error/CORS and browser preflight checks. Offline context tests verify missing
+configuration and modified manifests fail before network access and cleanup does
+not repeat revoked sessions.
+
+The account suites check stored credentials/profiles, independent sessions,
+wrong-password/unknown-alias 401s, logout revocation and reuse rejection, unique
+registration, automatic sign-in, blank story/feed and zero relationship counts,
+public S3 image bytes, duplicate-alias preservation, subsequent login, validation,
+and CORS. Registration creates two uniquely named accounts and images per run;
+they remain because there is no account-deletion endpoint. Tests revoke their
+sessions and do not change the seeded public fixture snapshots. The PNG bytes
+are shared with the seed tool. No live tests have been run yet.
+
+The full live command still includes legacy relationship/posting/ServerFacade
+suites. Their migration, live inactivity expiry/activity refresh checks, deployment,
+and browser verification remain pending. Until those suites are migrated, run only
+the six prepared suites using the command below.
 
 `src/tools/milestone4Fixtures.ts` builds a versioned deterministic fixture plan.
 `src/tools/seedMilestone4.ts` persists it through the DAOFactory interfaces;
@@ -1240,7 +1260,7 @@ Set TWEETER_API_BASE_URL to the deployed Milestone 4A stage, keeping the same
 TWEETER_FIXTURE_PATH and TWEETER_TEST_PASSWORD, then run:
 
 ```sh
-npm run test:integration --workspace tweeter-web -- --runTestsByPath test/integration/Story.test.ts test/integration/Feed.test.ts
+npm run test:integration --workspace tweeter-web -- --runTestsByPath test/integration/Login.test.ts test/integration/Register.test.ts test/integration/Logout.test.ts test/integration/GetUser.test.ts test/integration/Story.test.ts test/integration/Feed.test.ts
 ```
 
 For browser scrolling verification, sign in as the manifest's reader account

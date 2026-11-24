@@ -1,43 +1,30 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { AuthenticatedRequest, AuthToken, LoginRequest } from "tweeter-shared";
+import { AuthenticatedRequest, UserAliasRequest } from "tweeter-shared";
 import { UserService } from "../../src/model.service/UserService";
-import { ServerFacade } from "../../src/net/ServerFacade";
+import { expectLiveError, expectLivePreflight, loadLiveTestContext, type LiveTestContext } from "./support/liveTestContext";
 
-const baseUrl = process.env.TWEETER_API_BASE_URL ??
-  "https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev";
-const facade = new ServerFacade(baseUrl);
+describe("Persisted logout integration", () => {
+  let context: LiveTestContext;
+  beforeAll(async () => { context = await loadLiveTestContext(); });
+  afterAll(async () => { await context?.cleanup(); });
 
-describe("Logout integration", () => {
-  it("logs out through ServerFacade using a token returned by Login", async () => {
-    const [, token] = await facade.login(new LoginRequest("@allen", "milestone-3-test-password"));
-
-    await expect(facade.logout(new AuthenticatedRequest(token.token))).resolves.toBeUndefined();
+  it.each(["facade", "service"] as const)("revokes a real session through the %s and blocks reuse", async (client) => {
+    const [, token] = await context.login();
+    if (client === "facade") await context.logout(token);
+    else {
+      await new UserService(context.facade).logout(token);
+      // Remove the successfully revoked token from afterAll cleanup.
+      context.forgetRevoked(token);
+    }
+    await expectLiveError(context, "/user/get", new UserAliasRequest(token.token, context.fixtures.users.reader.alias),
+      401, "[Unauthorized] Invalid or expired authentication token.");
+    await expectLiveError(context, "/user/logout", new AuthenticatedRequest(token.token),
+      401, "[Unauthorized] Invalid or expired authentication token.");
   });
 
-  it("completes the simulated logout through the client UserService", async () => {
-    await expect(new UserService(facade).logout(new AuthToken("milestone-3-test-token", Date.now())))
-      .resolves.toBeUndefined();
+  it("returns 400 with CORS for an empty token", async () => {
+    await expectLiveError(context, "/user/logout", new AuthenticatedRequest(""), 400, "[Bad Request] A token is required.");
   });
 
-  it("propagates an empty-token validation error", async () => {
-    await expect(facade.logout(new AuthenticatedRequest(""))).rejects.toThrow("[Bad Request] A token is required.");
-  });
-
-  it("allows the browser's POST preflight request", async () => {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/user/logout`, {
-      method: "OPTIONS",
-      headers: {
-        Origin: "http://localhost:5173",
-        "Access-Control-Request-Method": "POST",
-        "Access-Control-Request-Headers": "content-type",
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(response.headers.get("access-control-allow-methods")).toContain("POST");
-    expect(response.headers.get("access-control-allow-headers")?.toLowerCase()).toContain("content-type");
-    await response.text();
-  });
+  it("allows browser preflight", async () => { await expectLivePreflight(context, "/user/logout"); });
 });

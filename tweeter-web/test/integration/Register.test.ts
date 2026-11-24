@@ -1,74 +1,56 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { Buffer } from "buffer";
-import { AuthToken, RegisterRequest, User, UserAliasRequest } from "tweeter-shared";
+import { Buffer } from "node:buffer";
+import { randomUUID } from "node:crypto";
+import { AuthToken, LoginRequest, PagedStatusItemRequest, RegisterRequest, User, UserAliasRequest } from "tweeter-shared";
+import { fixtureImageBase64 } from "../../../tweeter-server/src/tools/milestone4Fixtures";
 import { UserService } from "../../src/model.service/UserService";
-import { ServerFacade } from "../../src/net/ServerFacade";
+import { expectLiveError, expectLivePreflight, loadLiveTestContext, type LiveTestContext } from "./support/liveTestContext";
 
-const baseUrl = process.env.TWEETER_API_BASE_URL ??
-  "https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev";
-const facade = new ServerFacade(baseUrl);
-const request = new RegisterRequest(
-  "Test", "User", "@test-user", "milestone-3-test-password",
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "png"
-);
+describe("Persisted registration integration", () => {
+  let context: LiveTestContext;
+  const newRequest = () => new RegisterRequest("Registered", "Tester", `@registration-${randomUUID()}`,
+    context.password, fixtureImageBase64, "png");
+  beforeAll(async () => { context = await loadLiveTestContext(); });
+  afterAll(async () => { await context?.cleanup(); });
 
-function expectRegistration(result: [User, AuthToken]): void {
-  const [user, token] = result;
-  expect(user).toBeInstanceOf(User);
-  expect(user.dto).toEqual({
-    firstName: "Allen", lastName: "Anderson", alias: "@allen",
-    imageUrl: "https://faculty.cs.byu.edu/~jwilkerson/cs340/tweeter/images/donald_duck.png",
-  });
-  expect(token).toBeInstanceOf(AuthToken);
-  expect(typeof token.token).toBe("string");
-  expect(token.token.trim().length).toBeGreaterThan(0);
-  expect(Number.isFinite(token.timestamp)).toBe(true);
-  expect(token.timestamp).toBeGreaterThan(0);
-}
-
-describe("Register integration", () => {
-  it("returns the expected dummy user and token through ServerFacade", async () => {
-    expectRegistration(await facade.register(request));
-  });
-
-  it("sends image bytes through the client UserService and returns domain objects", async () => {
-    expectRegistration(await new UserService(facade).register(
-      request.firstName, request.lastName, request.alias, request.password,
-      new Uint8Array(Buffer.from(request.imageStringBase64, "base64")), request.imageFileExtension
-    ));
-  });
-
-  it("uses the returned token in a subsequent request", async () => {
-    const [, token] = await facade.register(request);
-    const user = await facade.getUser(new UserAliasRequest(token.token, "@amy"));
-
+  it.each(["facade", "service"] as const)("registers through the %s, signs in automatically, and starts with empty lists", async (client) => {
+    const request = newRequest();
+    const [user, token] = context.track(client === "facade" ? await context.facade.register(request)
+      : await new UserService(context.facade).register(request.firstName, request.lastName, request.alias,
+        request.password, new Uint8Array(Buffer.from(request.imageStringBase64, "base64")), "png"));
     expect(user).toBeInstanceOf(User);
-    expect(user!.name).toBe("Amy Ames");
+    expect(user.dto).toEqual({ firstName: request.firstName, lastName: request.lastName, alias: request.alias, imageUrl: user.imageUrl });
+    expect(token).toBeInstanceOf(AuthToken);
+    expect(token.token).toMatch(/^[a-f0-9]{64}$/);
+    expect(token.timestamp).toBeGreaterThan(0);
+    expect(new URL(user.imageUrl).protocol).toBe("https:");
+    expect(new URL(user.imageUrl).pathname).toMatch(/^\/image\//);
+    const authRequest = new UserAliasRequest(token.token, user.alias);
+    await expect(context.facade.getUser(authRequest)).resolves.toEqual(user);
+    await expect(context.facade.getMoreFeed(new PagedStatusItemRequest(token.token, user.alias, 10, null))).resolves.toEqual([[], false]);
+    await expect(context.facade.getMoreStory(new PagedStatusItemRequest(token.token, user.alias, 10, null))).resolves.toEqual([[], false]);
+    await expect(context.facade.getFollowerCount(authRequest)).resolves.toBe(0);
+    await expect(context.facade.getFolloweeCount(authRequest)).resolves.toBe(0);
+
+    const image = await fetch(user.imageUrl, { signal: AbortSignal.timeout(10000) });
+    expect(image.status).toBe(200);
+    expect(image.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await image.arrayBuffer())).toEqual(Buffer.from(fixtureImageBase64, "base64"));
+
+    const [returningUser] = context.track(await context.facade.login(new LoginRequest(user.alias, request.password)));
+    expect(returningUser.dto).toEqual(user.dto);
+    // A duplicate must preserve the original account and public image reference.
+    await expectLiveError(context, "/user/register", { ...request, firstName: "Replacement" }, 400, "[Bad Request] That alias is already registered.");
+    await expect(context.facade.getUser(authRequest)).resolves.toEqual(user);
   });
 
-  it.each([
-    ["empty alias", { ...request, alias: "" }, "[Bad Request] An alias is required."],
-    ["missing image", { ...request, imageStringBase64: "" }, "[Bad Request] A Base64 image is required."],
-    ["malformed image", { ...request, imageStringBase64: "not-base64!" }, "[Bad Request] The image must be valid Base64."],
-  ] as const)("propagates validation errors for %s", async (_description, invalidRequest, message) => {
-    await expect(facade.register(invalidRequest)).rejects.toThrow(message);
+  it.each(["alias", "image", "malformedImage"] as const)("returns 400 with CORS for invalid %s", async (field) => {
+    const request = newRequest();
+    const body = { ...request, ...(field === "alias" ? { alias: "" } : { imageStringBase64: field === "image" ? "" : "not-base64!" }) };
+    const message = field === "alias" ? "[Bad Request] An alias is required." : field === "image"
+      ? "[Bad Request] A Base64 image is required." : "[Bad Request] The image must be valid Base64.";
+    await expectLiveError(context, "/user/register", body, 400, message);
   });
 
-  it("allows the browser's POST preflight request", async () => {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/user/register`, {
-      method: "OPTIONS",
-      headers: {
-        Origin: "http://localhost:5173",
-        "Access-Control-Request-Method": "POST",
-        "Access-Control-Request-Headers": "content-type",
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(response.headers.get("access-control-allow-methods")).toContain("POST");
-    expect(response.headers.get("access-control-allow-headers")?.toLowerCase()).toContain("content-type");
-    await response.text();
-  });
+  it("allows browser preflight", async () => { await expectLivePreflight(context, "/user/register"); });
 });

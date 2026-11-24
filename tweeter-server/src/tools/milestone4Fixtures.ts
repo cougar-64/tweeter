@@ -2,6 +2,8 @@
 import type { UserDto } from "tweeter-shared";
 import type { StoredStatus } from "../model/dao/DAOModels";
 
+export const fixtureImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNQaLgAAAI0AXFUk8N2AAAAAElFTkSuQmCC";
+
 export function buildMilestone4Fixtures(namespace: string, imageUrl: string) {
   if (!/^[a-z0-9]{6,24}$/.test(namespace)) throw new Error("Fixture namespace must be 6-24 lowercase letters/digits.");
   const profile = (suffix: string, firstName: string): UserDto => ({

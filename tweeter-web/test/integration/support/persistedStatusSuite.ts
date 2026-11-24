@@ -1,45 +1,33 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { readFile } from "node:fs/promises";
-import { deepStrictEqual } from "node:assert";
-import { AuthToken, LoginRequest, PagedStatusItemRequest, Status, Type, User } from "tweeter-shared";
-import { buildMilestone4Fixtures, type Milestone4Fixtures } from "../../../../tweeter-server/src/tools/milestone4Fixtures";
+import { AuthToken, PagedStatusItemRequest, Status, Type, User } from "tweeter-shared";
+import type { Milestone4Fixtures } from "../../../../tweeter-server/src/tools/milestone4Fixtures";
 import { StatusService } from "../../../src/model.service/StatusService";
 import { ServerFacade } from "../../../src/net/ServerFacade";
+import { expectLiveError, expectLivePreflight, loadLiveTestContext, type LiveTestContext } from "./liveTestContext";
 
 /** Live tests require an explicit API and a successfully written seed manifest. */
 export function describePersistedStatus(source: "story" | "feed"): void {
   describe(`Persisted ${source} integration`, () => {
+    let context: LiveTestContext;
     let fixtures: Milestone4Fixtures;
     let facade: ServerFacade;
-    let baseUrl: string;
     let token: AuthToken | undefined;
     let ownerAlias: string;
     let expected: Milestone4Fixtures["feed"];
-    const requireEnv = (name: string): string => {
-      const value = process.env[name];
-      if (!value) throw new Error(`Set ${name} before running persisted status integration tests; see README Milestone 4 fixtures.`);
-      return value;
-    };
     const load = (request: PagedStatusItemRequest): Promise<[Status[], boolean]> =>
       source === "story" ? facade.getMoreStory(request) : facade.getMoreFeed(request);
-    const http = (body: unknown) => fetch(`${baseUrl}/${source}/list`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-      signal: AbortSignal.timeout(10000),
-    });
 
     beforeAll(async () => {
-      baseUrl = requireEnv("TWEETER_API_BASE_URL").replace(/\/$/, "");
-      const parsed = JSON.parse(await readFile(requireEnv("TWEETER_FIXTURE_PATH"), "utf8"));
-      fixtures = buildMilestone4Fixtures(parsed.namespace, parsed.imageUrl);
-      deepStrictEqual(parsed, fixtures, "Fixture manifest differs from this fixture version. Use a fresh seed namespace.");
-      const result = await new ServerFacade(baseUrl).login(new LoginRequest(fixtures.users.reader.alias, requireEnv("TWEETER_TEST_PASSWORD")));
-      facade = new ServerFacade(baseUrl);
+      context = await loadLiveTestContext();
+      fixtures = context.fixtures;
+      facade = context.facade;
+      const result = await context.login();
       token = result[1];
       expect(result[0].dto).toEqual(fixtures.users.reader);
       ownerAlias = source === "story" ? fixtures.users.authorA.alias : fixtures.users.reader.alias;
       expected = source === "story" ? fixtures.stories.authorA : fixtures.feed;
     });
-    afterAll(async () => { if (token) await facade.logout({ token: token.token }); });
+    afterAll(async () => { await context?.cleanup(); });
 
     it("returns persisted snapshots through the client service with stable IDs and domain objects", async () => {
       const service = new StatusService(facade);
@@ -84,10 +72,8 @@ export function describePersistedStatus(source: "story" | "feed"): void {
     });
 
     it("returns HTTP 401 with CORS for an invalid token", async () => {
-      const response = await http(new PagedStatusItemRequest("invalid-fixture-token", ownerAlias, 10, null));
-      expect(response.status).toBe(401);
-      expect(response.headers.get("access-control-allow-origin")).toBe("*");
-      await expect(response.json()).resolves.toEqual({ errorMessage: "[Unauthorized] Invalid or expired authentication token." });
+      await expectLiveError(context, `/${source}/list`, new PagedStatusItemRequest("invalid-fixture-token", ownerAlias, 10, null),
+        401, "[Unauthorized] Invalid or expired authentication token.");
     });
 
     it.each(["token", "alias", "pageSize", "cursor", "legacyCursor"] as const)("returns HTTP 400 with CORS for invalid %s", async (field) => {
@@ -103,22 +89,11 @@ export function describePersistedStatus(source: "story" | "feed"): void {
         message = source === "story" ? "[Bad Request] A story cursor must identify a persisted status by the requested author."
           : "[Bad Request] A feed cursor must identify a persisted status.";
       }
-      const response = await http(request);
-      expect(response.status).toBe(400);
-      expect(response.headers.get("access-control-allow-origin")).toBe("*");
-      await expect(response.json()).resolves.toEqual({ errorMessage: message });
+      await expectLiveError(context, `/${source}/list`, request, 400, message);
     });
 
     it("allows the browser's POST preflight request", async () => {
-      const response = await fetch(`${baseUrl}/${source}/list`, {
-        method: "OPTIONS", headers: { Origin: "http://localhost:5173", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type" },
-        signal: AbortSignal.timeout(10000),
-      });
-      expect(response.status).toBe(200);
-      expect(response.headers.get("access-control-allow-origin")).toBe("*");
-      expect(response.headers.get("access-control-allow-methods")).toContain("POST");
-      expect(response.headers.get("access-control-allow-headers")?.toLowerCase()).toContain("content-type");
-      await response.text();
+      await expectLivePreflight(context, `/${source}/list`);
     });
   });
 }

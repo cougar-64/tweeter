@@ -1,68 +1,46 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import { randomUUID } from "node:crypto";
 import { AuthToken, LoginRequest, User, UserAliasRequest } from "tweeter-shared";
 import { UserService } from "../../src/model.service/UserService";
-import { ServerFacade } from "../../src/net/ServerFacade";
+import { expectLiveError, expectLivePreflight, loadLiveTestContext, type LiveTestContext } from "./support/liveTestContext";
 
-const baseUrl = process.env.TWEETER_API_BASE_URL ??
-  "https://s58iqa332m.execute-api.us-east-1.amazonaws.com/dev";
-const facade = new ServerFacade(baseUrl);
-const request = new LoginRequest("@allen", "milestone-3-test-password");
+describe("Persisted login integration", () => {
+  let context: LiveTestContext;
+  beforeAll(async () => { context = await loadLiveTestContext(); });
+  afterAll(async () => { await context?.cleanup(); });
 
-function expectLoginResult(result: [User, AuthToken]): void {
-  const [user, token] = result;
-  expect(user).toBeInstanceOf(User);
-  expect(user.dto).toEqual({
-    firstName: "Allen", lastName: "Anderson", alias: "@allen",
-    imageUrl: "https://faculty.cs.byu.edu/~jwilkerson/cs340/tweeter/images/donald_duck.png",
-  });
-  expect(token).toBeInstanceOf(AuthToken);
-  expect(typeof token.token).toBe("string");
-  expect(token.token.trim().length).toBeGreaterThan(0);
-  expect(Number.isFinite(token.timestamp)).toBe(true);
-  expect(token.timestamp).toBeGreaterThan(0);
-  expect(AuthToken.fromJson(token.toJson())!.dto).toEqual(token.dto);
-}
-
-describe("Login integration", () => {
-  it("retrieves the dummy user and token through ServerFacade", async () => {
-    expectLoginResult(await facade.login(request));
-  });
-
-  it("retrieves the dummy user and token through the client UserService", async () => {
-    expectLoginResult(await new UserService(facade).login(request.alias, request.password));
-  });
-
-  it("uses the returned token in an authenticated request", async () => {
-    const [, token] = await facade.login(request);
-    const user = await facade.getUser(new UserAliasRequest(token.token, "@amy"));
-
+  it.each(["facade", "service"] as const)("authenticates stored credentials through the %s", async (client) => {
+    const profile = context.fixtures.users.reader;
+    const [user, token] = client === "facade" ? await context.login()
+      : context.track(await new UserService(context.facade).login(profile.alias, context.password));
     expect(user).toBeInstanceOf(User);
-    expect(user!.alias).toBe("@amy");
-    expect(user!.name).toBe("Amy Ames");
+    expect(user.dto).toEqual(profile);
+    expect(token).toBeInstanceOf(AuthToken);
+    expect(token.token).toMatch(/^[a-f0-9]{64}$/);
+    expect(token.timestamp).toBeGreaterThan(0);
+    expect(AuthToken.fromJson(token.toJson())!.dto).toEqual(token.dto);
+    await expect(context.facade.getUser(new UserAliasRequest(token.token, profile.alias))).resolves.toEqual(user);
   });
 
-  it.each([
-    ["alias", new LoginRequest("", request.password), "[Bad Request] An alias is required."],
-    ["password", new LoginRequest(request.alias, ""), "[Bad Request] A password is required."],
-  ] as const)("propagates validation errors for an empty %s", async (_description, invalidRequest, message) => {
-    await expect(facade.login(invalidRequest)).rejects.toThrow(message);
+  it("issues independent tokens on repeated login", async () => {
+    const [, first] = await context.login();
+    const [, second] = await context.login();
+    expect(first.token).not.toBe(second.token);
+    await context.logout(first);
+    await expect(context.facade.getUser(new UserAliasRequest(second.token, context.fixtures.users.reader.alias)))
+      .resolves.toEqual(User.fromDto(context.fixtures.users.reader));
   });
 
-  it("allows the browser's POST preflight request", async () => {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/user/login`, {
-      method: "OPTIONS",
-      headers: {
-        Origin: "http://localhost:5173",
-        "Access-Control-Request-Method": "POST",
-        "Access-Control-Request-Headers": "content-type",
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(response.headers.get("access-control-allow-methods")).toContain("POST");
-    expect(response.headers.get("access-control-allow-headers")?.toLowerCase()).toContain("content-type");
-    await response.text();
+  it.each(["wrong password", "missing alias"] as const)("returns 401 with CORS for %s", async (failure) => {
+    const alias = failure === "missing alias" ? `@missing-${randomUUID()}` : context.fixtures.users.reader.alias;
+    const password = failure === "wrong password" ? randomUUID() : context.password;
+    await expectLiveError(context, "/user/login", new LoginRequest(alias, password), 401, "[Unauthorized] Invalid alias or password.");
   });
+
+  it.each(["alias", "password"] as const)("returns 400 with CORS for an empty %s", async (field) => {
+    await expectLiveError(context, "/user/login", new LoginRequest(field === "alias" ? "" : context.fixtures.users.reader.alias,
+      field === "password" ? "" : context.password), 400, field === "alias" ? "[Bad Request] An alias is required." : "[Bad Request] A password is required.");
+  });
+
+  it("allows browser preflight", async () => { await expectLivePreflight(context, "/user/login"); });
 });

@@ -5,7 +5,7 @@ import { open, rm } from "node:fs/promises";
 import bcrypt from "bcryptjs";
 import { loadAWSConfig } from "../config/AWSConfig";
 import { AWSDAOFactory } from "../model/dao/aws/AWSDAOFactory";
-import { buildMilestone4Fixtures } from "./milestone4Fixtures";
+import { buildMilestone4Fixtures, fixtureImageBase64 } from "./milestone4Fixtures";
 import { seedMilestone4 } from "./seedMilestone4";
 
 async function main(): Promise<void> {
@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   let completed = false;
   try {
     const fixtures = await seedMilestone4(new AWSDAOFactory(config), namespace, () => bcrypt.hash(password, 12),
-      Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNQaLgAAAI0AXFUk8N2AAAAAElFTkSuQmCC", "base64"));
+      Buffer.from(fixtureImageBase64, "base64"));
     await file.writeFile(JSON.stringify(fixtures, null, 2) + "\n");
     completed = true;
     console.log(`Created fixture manifest at ${output}. No passwords or tokens are included.`);
