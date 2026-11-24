@@ -35,3 +35,6 @@ samconfig.toml
 # Generated submission archives and Python caches
 submission/
 __pycache__/
+
+# Generated Milestone 4 live fixture manifests
+milestone4-fixtures/

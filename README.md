@@ -1079,7 +1079,7 @@ pagination through 13 statuses as pages of 10, 3, and 0:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFeedDAO.test.ts`.
 No live delivery/pagination has been verified. Jest's TypeScript transform now
 explicitly includes Node and Jest types alongside the existing Vite types, so
-mixed client/server test runs can resolve Node modules consistently. All 778
+mixed client/server test runs can resolve Node modules consistently. All 792
 offline tests pass with `npm test --workspace tweeter-web -- --runInBand`.
 
 `StatusService.postStatus` now authorizes the token, loads the session owner's
@@ -1163,9 +1163,10 @@ of 10/3/0 across 13 equal-timestamp records, no relationship/story reads or writ
 empty/missing owners, invalid/legacy cursors, continuation flags, authentication,
 and storage errors. Story tests also run against the shared implementation:
 `npm test --workspace tweeter-web -- --runInBand test/server/FeedService.test.ts test/server/StoryService.test.ts test/server/StoryLambda.test.ts test/server/AWSComposition.test.ts`.
-No server source uses FakeData now. Live integration fixtures still use Milestone 3
-assumptions and must be migrated before deployment; live populated tabs, browser
-scrolling remain pending. The server duplication review is documented above.
+No server source uses FakeData now. Story/feed live tests now use persisted fixtures;
+the remaining live integration suites still need migration from Milestone 3
+assumptions. Live populated tabs and browser scrolling remain unverified.
+The server duplication review is documented above.
 
 Profile images use the `image/` prefix in ProfileImagesBucket. A bucket policy
 allows public reads only under this prefix. ACLs remain disabled, so the S3 DAO
@@ -1178,10 +1179,74 @@ unfollowing stops future delivery and retains existing entries. Registration
 starts with an empty feed. These defaults can be revised if the course overview
 requires different behavior.
 
-The existing live Story integration test still targets Milestone 3 FakeData.
-Before deployment, it must be migrated to authenticated, controlled persisted
-fixtures checking more than ten posts, author isolation, unique pagination,
-and terminal empty pages. Offline DAO/service/Lambda tests cover these pagination
-contracts now; live fixtures and browser scrolling verification remain pending. Additional authentication checks will cover invalid
-credentials, expired sessions awaiting TTL cleanup, activity refresh, logout,
-and HTTP error responses with CORS.
+Story/Feed integration tests now share `test/integration/support/persistedStatusSuite.ts`.
+They require an explicit API URL, a generated fixture manifest, and the fixture
+password. They log in through the real API and revoke their own session afterward;
+no dummy tokens, default deployed endpoint, or hard-coded passwords remain in
+these two suites. Tests compare exact persisted snapshots, pagination and IDs,
+author/owner isolation, empty pages, invalid-token 401, malformed/legacy-cursor 400,
+and CORS/preflight behavior. Additional live authentication/relationship/mutation
+suite migration and session expiration/activity/logout checks remain pending.
+The entire live integration test command still includes older Milestone 3 suites;
+run only the two migrated suites using the command below until those are updated.
+
+`src/tools/milestone4Fixtures.ts` builds a versioned deterministic fixture plan.
+`src/tools/seedMilestone4.ts` persists it through the DAOFactory interfaces;
+`src/tools/seedMilestone4CLI.ts` supplies AWS composition and an explicit write mode.
+The default dry run does not load AWS configuration, access AWS, hash passwords,
+or create files. After building, preview with:
+
+```sh
+npm run build --workspace tweeter-server
+npm run seed:milestone4 --workspace tweeter-server -- --namespace m4a20261123
+```
+
+A fresh namespace creates four accounts, two follow relationships, thirteen posts
+per author (including timestamp ties), a reader feed containing all twenty-six
+posts, and one public one-pixel PNG in S3 shared by the fixture profiles. The
+reader has an empty story; the authors have empty feeds; the fourth account has
+neither posts nor feed entries. Each account gets a separately salted bcrypt hash
+of TWEETER_TEST_PASSWORD. No sessions are seeded. Feed copies are written directly
+through FeedDAO so index propagation cannot change the expected fixtures; this
+seed does not verify live API posting/fan-out or registration.
+
+After deploying Milestone 4A, configure the following environment variables with
+that stack's actual resource names before explicitly writing fixtures:
+AWS_REGION, USERS_TABLE_NAME, SESSIONS_TABLE_NAME, FOLLOWS_TABLE_NAME,
+STORIES_TABLE_NAME, FEEDS_TABLE_NAME, and PROFILE_IMAGES_BUCKET. Use your normal
+AWS credential provider with permission for user GetItem/PutItem, relationship
+transactions and user-counter updates, story PutItem, feed BatchWriteItem, and
+S3 PutObject. Set TWEETER_TEST_PASSWORD to a test password of 1-72 UTF-8 bytes,
+without placing credentials in the manifest or repository. Then, from the repo root:
+
+```sh
+mkdir -p milestone4-fixtures
+export TWEETER_FIXTURE_PATH="$PWD/milestone4-fixtures/m4a20261123.json"
+npm run seed:milestone4 --workspace tweeter-server -- --namespace m4a20261123 --write --output "$TWEETER_FIXTURE_PATH"
+```
+
+The command refuses existing account aliases before uploads/writes, uses conditional
+account creation to catch races, and never overwrites an existing output manifest.
+Generated manifests are ignored by Git and contain only public fixtures, not
+passwords or tokens. Use a fresh namespace for another run. Writes are not a
+cross-service transaction: failure may leave accounts, relationships, posts/feed
+entries, or an uploaded image. Incomplete runs remove the reserved output file and
+return failure, without deleting potentially committed data. There is no automatic
+cleanup/reset; a new namespace and an explicit review of partial test resources
+are needed after failure. Avoid concurrent seed runs using the same namespace.
+Keep these fixture accounts read-only while running exact-snapshot tests.
+
+Set TWEETER_API_BASE_URL to the deployed Milestone 4A stage, keeping the same
+TWEETER_FIXTURE_PATH and TWEETER_TEST_PASSWORD, then run:
+
+```sh
+npm run test:integration --workspace tweeter-web -- --runTestsByPath test/integration/Story.test.ts test/integration/Feed.test.ts
+```
+
+For browser scrolling verification, sign in as the manifest's reader account
+using the fixture password: its Feed should show 26 entries. Visit an author's
+Story for 13 entries, and the empty account for empty lists. This setup satisfies
+the data prerequisite for a tab with more than ten items only after the explicit
+seed succeeds; scrolling, S3 image delivery, API error responses, and pagination
+still require live/browser verification. No seed writes or live tests have been
+run as part of preparing these tools.
