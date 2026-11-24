@@ -1,6 +1,9 @@
+// AI-assisted: see AI-ATTRIBUTION.md
 import {ToastActionsContext, ToastListContext} from "./ToastContexts";
 import {ToastType} from "./Toast";
 import {useContext} from "react";
+
+const ERROR_MESSAGE_DURATION_MILLIS = 5000;
 
 interface MessageActions {
     displayInfoMessage: (
@@ -21,7 +24,7 @@ export const useMessageActions = (): MessageActions => {
 
     return {
         displayInfoMessage: (message: string, duration: number, bootStrapClasses?: string) => displayToast(ToastType.Info, message, duration, undefined, bootStrapClasses),
-        displayErrorMessage: (message: string, bootstrapClasses?: string) => displayToast(ToastType.Error, message, 0, undefined, bootstrapClasses),
+        displayErrorMessage: (message: string, bootstrapClasses?: string) => displayToast(ToastType.Error, message, ERROR_MESSAGE_DURATION_MILLIS, undefined, bootstrapClasses),
         deleteMessage: deleteToast,
         deleteAllMessages: deleteAllToasts
     };

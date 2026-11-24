@@ -1098,7 +1098,7 @@ pagination through 13 statuses as pages of 10, 3, and 0:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFeedDAO.test.ts`.
 Separate live suites now verify delivery and persisted story/feed pagination. Jest's TypeScript transform now
 explicitly includes Node and Jest types alongside the existing Vite types, so
-mixed client/server test runs can resolve Node modules consistently. All 800
+mixed client/server test runs can resolve Node modules consistently. All 801
 offline tests pass with `npm test --workspace tweeter-web -- --runInBand`.
 
 `StatusService.postStatus` now authorizes the token, loads the session owner's
@@ -1311,7 +1311,7 @@ and the five tables/image bucket/policy are active. Archived reviews and deploye
 outputs are in ignored `.aws-sam/milestone4-change-set.json`,
 `.aws-sam/milestone4-retry-change-set.json`, and
 `.aws-sam/milestone4-deployed-stack.json`. The explicit seed succeeded, followed by
-the full live verification above. The current table counts are twelve users,
+the full live verification above. Immediately after the automated run, table counts were twelve users,
 two relationships, thirty story entries, twenty-eight feed entries, and zero
 sessions, matching the seed plus isolated live-test data and cleanup.
 
@@ -1428,3 +1428,23 @@ empty lists, images, and wrong-password error in the browser. Registration with 
 real image, posting, follow/unfollow UI interactions, and formal performance/passoff
 checks remain. Running the full live suite again creates another set of isolated
 test accounts/images/posts; it preserves the baseline seeded snapshots.
+
+During the final browser review, persistent error toasts were traced to a zero
+expiration duration. MessageHooks now gives errors a five-second duration; Toaster's
+existing sweep removes them automatically. Progress messages explicitly using zero
+still remain until the operation removes them, and manual close remains available.
+The Toaster component regression test exercises error expiry alongside persistent
+progress and manual dismissal. Previously created zero-duration alerts may require
+one manual close or a refresh after updating the client.
+
+A newly registered account has no people in its lists yet. There is no search box,
+but the existing authenticated profile route accepts a known alias: keep the current
+frontend origin and open `/story/@m4a20261124-author-a` to view Alice and use Follow.
+Sign in with Remember Me enabled before changing the address bar: this performs
+a full reload, and the provider restores authentication from local storage only
+when the login was remembered. With Remember Me off (the default), authentication
+is held in memory and a reload returns to sign-in. After signing in with Remember
+Me enabled, enter the profile URL again.
+ItemScroller already resolves its route alias through authenticated user lookup.
+Unfollow after testing to restore the fixture's original relationship counts.
+No user-search UI or server search endpoint was added.
