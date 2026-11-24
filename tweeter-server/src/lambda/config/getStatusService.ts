@@ -1,13 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import { StatusService } from "../../model/service/StatusService";
-import { getAWSDependencies } from "./getAWSDependencies";
+import { createServiceProvider } from "./createServiceProvider";
 
-let service: StatusService | undefined;
-
-export function getStatusService(): StatusService {
-  if (service === undefined) {
-    const { factory, authorization } = getAWSDependencies();
-    service = new StatusService(factory, authorization);
-  }
-  return service;
-}
+export const getStatusService = createServiceProvider(
+  ({ factory, authorization }) => new StatusService(factory, authorization)
+);

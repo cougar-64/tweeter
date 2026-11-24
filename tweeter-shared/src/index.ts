@@ -5,6 +5,7 @@ export { Status } from "./model/domain/Status";
 export { User } from "./model/domain/User";
 export { AuthToken } from "./model/domain/AuthToken";
 export type { UserDto } from "./model/dto/UserDto";
+export { isUserDto } from "./model/dto/UserDto";
 export type { StatusDto, PersistedStatusDto } from "./model/dto/StatusDto";
 export { isStatusDto, isPersistedStatusDto, isStatusId } from "./model/dto/StatusDto";
 export type { AuthTokenDto } from "./model/dto/AuthTokenDto";

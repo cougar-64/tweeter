@@ -1,14 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import { getAWSDependencies } from "./getAWSDependencies";
 import { UserService } from "../../model/service/UserService";
+import { createServiceProvider } from "./createServiceProvider";
 
-let service: UserService | undefined;
-
-/** Lazy composition permits validation before configuration and reuses warm clients. */
-export function getUserService(): UserService {
-  if (service === undefined) {
-    const { factory, authorization } = getAWSDependencies();
-    service = new UserService(factory, authorization);
-  }
-  return service;
-}
+export const getUserService = createServiceProvider(
+  ({ factory, authorization }) => new UserService(factory, authorization)
+);

@@ -1,5 +1,5 @@
 // AI-assisted: see AI-ATTRIBUTION.md
-import type { UserDto } from "./UserDto";
+import { isUserDto, type UserDto } from "./UserDto";
 
 export interface StatusDto {
   readonly post: string;
@@ -23,14 +23,11 @@ export function isStatusDto(value: unknown): value is StatusDto {
     return false;
   }
   const status = value as Partial<StatusDto>;
-  const user = status.user;
   return (
     typeof status.post === "string" &&
     typeof status.timestamp === "number" && Number.isSafeInteger(status.timestamp) && status.timestamp >= 0 &&
     (status.statusId === undefined || isStatusId(status.statusId)) &&
-    typeof user === "object" && user !== null && !Array.isArray(user) &&
-    typeof user.firstName === "string" && typeof user.lastName === "string" &&
-    typeof user.alias === "string" && user.alias.trim().length > 0 && typeof user.imageUrl === "string"
+    isUserDto(status.user)
   );
 }
 

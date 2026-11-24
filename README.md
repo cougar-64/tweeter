@@ -960,10 +960,37 @@ expose password hashes. Isolated tests exercise commands and simulated database
 responses; live transaction atomicity and index behavior remain unverified:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFollowDAO.test.ts`.
 
-Before milestone completion, review duplication across the completed services,
-Lambda composition/handlers, DAO pagination/retries, and test fixtures. The follow
-DAO already shares its substantial mutation and query logic; a broader refactor
-is deferred until the remaining features are implemented.
+The Milestone 4A duplication review is complete for the current server code.
+Repeated page-size/cursor validation now delegates to generic
+`lambda/validation/validatePagedItemRequest.ts`, with endpoint-specific DTO guards
+and unchanged error messages. Shared `isUserDto` validates both relationship
+cursors and nested status authors, so their accepted public user shapes stay in
+sync. `lambda/config/createServiceProvider.ts` centralizes lazy service creation
+and warm-instance caching; all three service providers supply only their
+constructor callback. Configuration and AWS clients are still resolved on first
+service use, after Lambda request validation, and failed construction can be
+retried on a later call.
+
+Existing substantial reuse remains in place:
+
+| Responsibility | Shared implementation |
+| --- | --- |
+| Relationship mutations, counts, and lists | FollowService helpers and DynamoDBFollowDAO mutation/query helpers |
+| Story/feed reads | StatusService.loadStatuses and StatusPageLambda |
+| DynamoDB page filling and lookahead | queryPage, reused for relationships and status storage |
+| Story/feed row encoding and public snapshots | DynamoDBStatusStore |
+| Feed batching and unprocessed retries | DynamoDBFeedDAO.writeBatch |
+| Authentication and activity refresh | AuthorizationService |
+| Login/register response conversion | AuthenticationLambda |
+
+User and session DAOs retain separate implementations: conditional account
+creation and credential mapping differ from session compare-and-swap refresh and
+expiration checks. Their short SDK constructor/request declarations do not warrant
+a common DAO superclass. User/status pagination adapters likewise retain their
+small, type-specific domain/response conversions. Feature tests retain separate
+fixtures and assertions where author/owner and credential/session semantics
+differ. API Gateway route response declarations remain explicit for each route;
+changing deployment representation is outside this behavior-preserving cleanup.
 
 Stories and feeds use a fixed-width timestamp followed by a unique status ID
 as `postKey`, queried newest first. DAO cursors carry timestamp and status ID,
@@ -1138,7 +1165,7 @@ and storage errors. Story tests also run against the shared implementation:
 `npm test --workspace tweeter-web -- --runInBand test/server/FeedService.test.ts test/server/StoryService.test.ts test/server/StoryLambda.test.ts test/server/AWSComposition.test.ts`.
 No server source uses FakeData now. Live integration fixtures still use Milestone 3
 assumptions and must be migrated before deployment; live populated tabs, browser
-scrolling, and the final duplication review remain pending.
+scrolling remain pending. The server duplication review is documented above.
 
 Profile images use the `image/` prefix in ProfileImagesBucket. A bucket policy
 allows public reads only under this prefix. ACLs remain disabled, so the S3 DAO
