@@ -1,8 +1,10 @@
 // AI-assisted: see AI-ATTRIBUTION.md
+import { randomUUID } from "node:crypto";
+import { setTimeout as pause } from "node:timers/promises";
 import { readFile } from "node:fs/promises";
 import { deepStrictEqual } from "node:assert";
-import { AuthToken, LoginRequest, User } from "tweeter-shared";
-import { buildMilestone4Fixtures } from "../../../../tweeter-server/src/tools/milestone4Fixtures";
+import { AuthToken, LoginRequest, RegisterRequest, User } from "tweeter-shared";
+import { buildMilestone4Fixtures, fixtureImageBase64 } from "../../../../tweeter-server/src/tools/milestone4Fixtures";
 import { ServerFacade } from "../../../src/net/ServerFacade";
 
 /** No implicit API target or embedded credentials for persisted live tests. */
@@ -67,4 +69,21 @@ export async function expectLivePreflight(context: LiveTestContext, path: string
   expect(response.headers.get("access-control-allow-methods")).toContain("POST");
   expect(response.headers.get("access-control-allow-headers")?.toLowerCase()).toContain("content-type");
   await response.text();
+}
+
+/** Mutation suites get their own accounts instead of modifying seed snapshots. */
+export async function registerLiveUser(context: LiveTestContext, label: string): Promise<[User, AuthToken]> {
+  return context.track(await context.facade.register(new RegisterRequest(
+    label, "Integration", `@live-${randomUUID()}`, context.password, fixtureImageBase64, "png"
+  )));
+}
+
+/** Retry only successful reads whose eventually consistent data has not converged. */
+export async function waitForLive<T>(read: () => Promise<T>, ready: (value: T) => boolean): Promise<T> {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const value = await read();
+    if (ready(value)) return value;
+    if (attempt < 11) await pause(250);
+  }
+  throw new Error("Live follower index did not converge after 12 reads.");
 }

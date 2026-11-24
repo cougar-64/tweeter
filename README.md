@@ -777,7 +777,7 @@ and a 30-second timeout to give bcrypt and persistence enough execution time;
 actual AWS latency has not yet been measured. Invalid input/duplicate aliases
 use the existing HTTP 400/CORS mapping. Other failures use the generic 500 mapping.
 
-UserService's dependencies remain optional temporarily for unmigrated methods;
+UserService's dependencies remain optional for existing test construction;
 registration requires injection and never falls back to FakeData. New service
 tests and updated Lambda tests cover persistence delegation, actual bcrypt
 verification, automatic sign-in, duplicate races, failures, and cleanup:
@@ -840,8 +840,8 @@ GetUserLambda validates before resolving the cached user service and accepts an
 injected service for isolated tests. GetUserFunction has GetItem only on
 UsersTable and GetItem/UpdateItem only on SessionsTable. Its API mapping returns
 400 for malformed request fields, 401 for invalid sessions, and generic 500 for
-unexpected failures, all with CORS. Live user-lookup tests still use dummy tokens
-and must migrate to authenticated persisted fixtures before deployment. Tests
+unexpected failures, all with CORS. Live user-lookup tests now use authenticated
+persisted fixtures and await deployed verification. Offline tests
 exercise public-profile reconstruction, lookups of another user, unknown aliases,
 activity refresh, expiration, logout revocation, and error propagation:
 `npm test --workspace tweeter-web -- --runInBand test/server/GetUserService.test.ts test/server/GetUserLambda.test.ts`.
@@ -861,8 +861,9 @@ to 400, invalid sessions to 401, and infrastructure errors to generic 500 with
 CORS. Their roles allow PutItem (follow) or DeleteItem (unfollow) only on
 FollowsTable and GetItem/UpdateItem on UsersTable/SessionsTable. Transaction IAM
 permissions use the underlying item actions. No scan/index/S3 permissions are
-needed for mutations. The old live mutation tests use dummy tokens and still
-need migration before deployment. Shared service/composition tests run with:
+needed for mutations. Live mutation tests now register isolated accounts and check
+persisted direction/counters and repeat-request behavior. They await deployed
+verification. Shared service/composition tests run with:
 `npm test --workspace tweeter-web -- --runInBand test/server/FollowServiceActions.test.ts test/server/FollowLambda.test.ts test/server/AWSComposition.test.ts`.
 
 FollowService's follower/followee count methods now share a count-selection
@@ -880,9 +881,9 @@ handling likewise supports injection and resolves the cached FollowService after
 validation. Count roles have GetItem on UsersTable, and following-status has
 GetItem on FollowsTable. All three can GetItem/UpdateItem on SessionsTable for
 authorization/refresh; none can mutate relationships or user counters. Routes
-declare 400/401/500 with CORS and nonoverlapping error patterns. Old live count
-and status tests still depend on dummy sessions/data and need migration before
-deployment. Local tests cover counter selection, zero counts, relationship
+declare 400/401/500 with CORS and nonoverlapping error patterns. Live count/status
+tests now assert exact seeded values and relationship direction using real sessions.
+They await deployed verification. Local tests cover counter selection, zero counts, relationship
 direction, authentication before reads, injection, and infrastructure errors:
 `npm test --workspace tweeter-web -- --runInBand test/server/FollowServiceReads.test.ts test/server/FollowCountLambdas.test.ts test/server/FollowingStatusLambda.test.ts`.
 
@@ -907,9 +908,11 @@ Local tests pass 13 profiles through each Lambda and serialized JSON cursor in
 pages of 10, 3, and 0, check reverse-completion profile reads preserve ordering,
 and cover authorization, missing users/profiles, and storage failures:
 `npm test --workspace tweeter-web -- --runInBand test/server/FollowServicePages.test.ts test/server/FollowLambdas.test.ts`.
-These fixtures are in-memory; live tests still use Milestone 3 data and must be
-migrated before deployment. Seed more than ten persisted items for actual browser
-scrolling/passoff and verify deployed profile queries and follower-index behavior.
+These local fixtures are in-memory. Live list tests now use the seeded reader and
+authors with one-item pages to exercise cursors, exact profiles, and terminal empty
+pages. Follower reads use bounded index-convergence checks. The thirteen-entry
+stories and twenty-six-entry feed support browser scrolling/passoff once seeded;
+deployed queries, pagination, and scrolling still need verification.
 
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
@@ -1081,7 +1084,7 @@ pagination through 13 statuses as pages of 10, 3, and 0:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFeedDAO.test.ts`.
 No live delivery/pagination has been verified. Jest's TypeScript transform now
 explicitly includes Node and Jest types alongside the existing Vite types, so
-mixed client/server test runs can resolve Node modules consistently. All 797
+mixed client/server test runs can resolve Node modules consistently. All 800
 offline tests pass with `npm test --workspace tweeter-web -- --runInBand`.
 
 `StatusService.postStatus` now authorizes the token, loads the session owner's
@@ -1115,8 +1118,10 @@ Posting tests cover authoritative metadata, unique IDs at equal timestamps,
 113 followers across multiple pages, empty follower lists, pending delivery,
 authentication/storage failures, and partial-delivery errors:
 `npm test --workspace tweeter-web -- --runInBand test/server/PostStatusService.test.ts test/server/PostStatusLambda.test.ts`.
-These use mocked DAOs, not AWS. Existing live posting tests use dummy tokens and
-need migration before deployment. All StatusService operations now use persistence.
+These use mocked DAOs, not AWS. Live posting tests now use isolated registered
+accounts and verify authoritative metadata, synchronous follower delivery, and
+retained entries after unfollow. They await deployed verification. All StatusService
+operations now use persistence.
 
 `StatusService.loadMoreStoryItems` now authenticates and refreshes the session,
 checks that the requested author exists, and calls StoryDAO.getStory with only
@@ -1167,8 +1172,9 @@ and storage errors. Story tests also run against the shared implementation:
 `npm test --workspace tweeter-web -- --runInBand test/server/FeedService.test.ts test/server/StoryService.test.ts test/server/StoryLambda.test.ts test/server/AWSComposition.test.ts`.
 No server source uses FakeData now. Story/feed live tests now use persisted fixtures;
 login, registration, logout, and user lookup have also been migrated.
-Relationship, posting, and the legacy ServerFacade live suites still need migration
-from Milestone 3 assumptions. Live populated tabs and browser scrolling remain unverified.
+Relationship and posting live suites have also been migrated. The duplicate legacy
+ServerFacade follower suite was consolidated into the follower endpoint suite.
+Live populated tabs and browser scrolling remain unverified.
 The server duplication review is documented above.
 
 Profile images use the `image/` prefix in ProfileImagesBucket. A bucket policy
@@ -1191,7 +1197,7 @@ author/owner isolation, empty pages, invalid-token 401, malformed/legacy-cursor 
 and CORS/preflight behavior. Login, Register, Logout, and GetUser also use persisted
 fixtures through `test/integration/support/liveTestContext.ts`. This shared context
 loads and validates explicit configuration/manifest data, tracks acquired sessions,
-and revokes only sessions still active at cleanup. All six migrated suites share
+and revokes only sessions still active at cleanup. All fourteen route suites share
 HTTP error/CORS and browser preflight checks. Offline context tests verify missing
 configuration and modified manifests fail before network access and cleanup does
 not repeat revoked sessions.
@@ -1203,12 +1209,42 @@ public S3 image bytes, duplicate-alias preservation, subsequent login, validatio
 and CORS. Registration creates two uniquely named accounts and images per run;
 they remain because there is no account-deletion endpoint. Tests revoke their
 sessions and do not change the seeded public fixture snapshots. The PNG bytes
-are shared with the seed tool. No live tests have been run yet.
+are shared with the seed tool. No live API behavior has been verified yet.
 
-The full live command still includes legacy relationship/posting/ServerFacade
-suites. Their migration, live inactivity expiry/activity refresh checks, deployment,
-and browser verification remain pending. Until those suites are migrated, run only
-the six prepared suites using the command below.
+Relationship suites now share mutation, count, and pagination runners. Counts and
+following status assert exact fixture state, including zeros and reverse/self
+relationships. List checks cover public profiles through endpoint/facade/service,
+JSON cursors, one-item pages, empty accounts, terminal pages, and errors/CORS.
+The follower endpoint retains API Gateway unknown-route CORS coverage. Redundant
+legacy ServerFacade follower tests were consolidated into that suite.
+
+Follow/unfollow tests create isolated actor/target pairs, check both counter
+changes and directed state, repeat operations to verify idempotence, and cover
+self/missing-target rejection and 400/401/preflight. Posting tests use a separate
+author/reader pair and wait for follower-index convergence before posting and
+after unfollow. They check that client author/time/ID are replaced, a successful
+post is immediately present in the reader's precomputed feed, unfollow stops
+future delivery, and earlier entries remain. Feed reads after successful posting
+are not retried, so missing synchronous delivery fails the test.
+
+Only successful follower reads with lagging expected data are retried: twelve
+reads maximum with 250 ms between reads. HTTP/authentication/storage failures
+propagate immediately. Offline tests cover convergence, exhaustion, and error
+propagation using mocked pauses. The full live run creates eight unique accounts
+and images (two registration, four relationship mutation, two posting), plus
+four posts/two feed copies. It revokes sessions and removes test relationships;
+accounts/images/posts remain because deletion endpoints do not exist. Seeded
+reader/author profiles, relationships, stories, and feed snapshots stay unchanged.
+
+All fourteen route suites are now prepared for persisted verification. No dummy
+credentials, FakeData assumptions, or fallback deployed API URL remain under
+`test/integration`. Actual successful live verification, inactivity expiry/activity
+refresh checks, deployment/seeding, and browser checks remain pending. Without
+TWEETER_API_BASE_URL, TWEETER_FIXTURE_PATH, and TWEETER_TEST_PASSWORD the suites
+fail in setup; their compilation/offline helper results do not establish that the
+deployed APIs pass. The previously diagnosed forty-five failures came from that
+missing configuration before any HTTP requests. Run the full live command below
+only after deployment and a successful explicit seed.
 
 `src/tools/milestone4Fixtures.ts` builds a versioned deterministic fixture plan.
 `src/tools/seedMilestone4.ts` persists it through the DAOFactory interfaces;
@@ -1260,7 +1296,7 @@ Set TWEETER_API_BASE_URL to the deployed Milestone 4A stage, keeping the same
 TWEETER_FIXTURE_PATH and TWEETER_TEST_PASSWORD, then run:
 
 ```sh
-npm run test:integration --workspace tweeter-web -- --runTestsByPath test/integration/Login.test.ts test/integration/Register.test.ts test/integration/Logout.test.ts test/integration/GetUser.test.ts test/integration/Story.test.ts test/integration/Feed.test.ts
+npm run test:integration --workspace tweeter-web
 ```
 
 For browser scrolling verification, sign in as the manifest's reader account
@@ -1268,5 +1304,5 @@ using the fixture password: its Feed should show 26 entries. Visit an author's
 Story for 13 entries, and the empty account for empty lists. This setup satisfies
 the data prerequisite for a tab with more than ten items only after the explicit
 seed succeeds; scrolling, S3 image delivery, API error responses, and pagination
-still require live/browser verification. No seed writes or live tests have been
-run as part of preparing these tools.
+still require live/browser verification. No seed writes or live API verification have been
+performed as part of preparing these tools.

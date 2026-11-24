@@ -2,15 +2,21 @@
 /// <reference types="node" />
 // AI-assisted: see AI-ATTRIBUTION.md
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import * as timers from "node:timers/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AuthToken, User } from "tweeter-shared";
 import { buildMilestone4Fixtures } from "../../../tweeter-server/src/tools/milestone4Fixtures";
-import { loadLiveTestContext } from "../integration/support/liveTestContext";
+import { loadLiveTestContext, waitForLive } from "../integration/support/liveTestContext";
+
+jest.mock("node:timers/promises", () => ({
+  ...jest.requireActual("node:timers/promises"), setTimeout: jest.fn().mockResolvedValue(undefined),
+}));
 
 let directory: string;
 const fixtures = buildMilestone4Fixtures("contexttest", "https://example.com/image.png");
 beforeEach(async () => {
+  jest.mocked(timers.setTimeout).mockClear();
   directory = await mkdtemp(join(tmpdir(), "tweeter-live-context-"));
   const path = join(directory, "fixtures.json");
   await writeFile(path, JSON.stringify(fixtures));
@@ -49,4 +55,29 @@ it("keeps fixture loading read-only and cleans up only sessions still tracked af
     ["https://explicit-test.invalid/dev/user/logout", { token: first.token }],
     ["https://explicit-test.invalid/dev/user/logout", { token: third.token }],
   ]);
+});
+
+it("retries successful reads until the follower index converges", async () => {
+  const pause = jest.mocked(timers.setTimeout);
+  const read = jest.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValue(["@reader"]);
+  await expect(waitForLive<string[]>(read, (items) => items.length === 1)).resolves.toEqual(["@reader"]);
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(pause).toHaveBeenCalledTimes(2);
+});
+
+it("fails explicitly after bounded follower-index reads", async () => {
+  const pause = jest.mocked(timers.setTimeout);
+  const read = jest.fn().mockResolvedValue([]);
+  await expect(waitForLive<string[]>(read, (items) => items.length === 1)).rejects.toThrow("did not converge after 12 reads");
+  expect(read).toHaveBeenCalledTimes(12);
+  expect(pause).toHaveBeenCalledTimes(11);
+});
+
+it("propagates HTTP/storage failures instead of retrying them as index lag", async () => {
+  const pause = jest.mocked(timers.setTimeout);
+  const error = new Error("HTTP 500");
+  const read = jest.fn().mockRejectedValue(error);
+  await expect(waitForLive(read, () => true)).rejects.toBe(error);
+  expect(read).toHaveBeenCalledTimes(1);
+  expect(pause).not.toHaveBeenCalled();
 });
