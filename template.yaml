@@ -1669,3 +1669,24 @@ Outputs:
   GetFollowingStatusFunctionName:
     Description: Following status Lambda function name for direct invocation and debugging.
     Value: !Ref GetFollowingStatusFunction
+  DeploymentRegion:
+    Description: AWS region to use for the seed tool and SDK clients.
+    Value: !Ref AWS::Region
+  UsersTableName:
+    Description: USERS_TABLE_NAME for local seed configuration.
+    Value: !Ref UsersTable
+  SessionsTableName:
+    Description: SESSIONS_TABLE_NAME for local seed configuration.
+    Value: !Ref SessionsTable
+  FollowsTableName:
+    Description: FOLLOWS_TABLE_NAME for local seed configuration.
+    Value: !Ref FollowsTable
+  StoriesTableName:
+    Description: STORIES_TABLE_NAME for local seed configuration.
+    Value: !Ref StoriesTable
+  FeedsTableName:
+    Description: FEEDS_TABLE_NAME for local seed configuration.
+    Value: !Ref FeedsTable
+  ProfileImagesBucketName:
+    Description: PROFILE_IMAGES_BUCKET for local seed configuration.
+    Value: !Ref ProfileImagesBucket

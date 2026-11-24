@@ -1,0 +1,17 @@
+# AI-assisted: see AI-ATTRIBUTION.md
+# Copy to the Git-ignored samconfig.toml after checking the stack/region.
+# Pass --profile with your deployment-capable AWS profile; credentials stay in AWS config.
+version = 0.1
+
+[default.build.parameters]
+build_in_source = true
+
+[default.deploy.parameters]
+stack_name = "tweeter-m3"
+region = "us-east-1"
+resolve_s3 = true
+s3_prefix = "tweeter-m3"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+fail_on_empty_changeset = false
+parameter_overrides = "StageName=\"dev\" SessionInactivityMinutes=\"30\""

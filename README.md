@@ -2,6 +2,11 @@
 
 A starter project for the Tweeter Web application.
 
+Milestone 4A backend deployment is now verified: 106 live integration tests pass.
+See [the persistence section](#milestone-4a-persistence-foundation) for current
+status and local test/login settings. Earlier Milestone 3 sections document the
+historical dummy-data implementation.
+
 ## Setting Up the Project
 
 1. cd into the project root folder
@@ -645,7 +650,16 @@ in source, as do all seven relationship endpoints. UserService, FollowService, a
 no longer import FakeData. Status posting persists stories and precomputes feed
 copies; story and feed reads now use persistence. All protected endpoints
 authenticate and refresh sessions in source.
-No Milestone 4A resources have been deployed.
+Milestone 4A is deployed to tweeter-m3/dev in us-east-1 with stack status
+UPDATE_COMPLETE. All 106 live integration tests across fourteen suites pass.
+Fixture namespace m4a20261124 is seeded with four accounts, thirteen posts per
+author, and the reader's twenty-six-entry feed. Additional live checks verified
+TTL-expired session rejection, thirty-minute inactivity refresh, hashed bearer
+storage, logout revocation, and stored bcrypt password hashes. The user has now
+verified browser feed/story scrolling, relationship lists/counts, empty accounts,
+profile-image rendering, and wrong-password rejection. Browser signup with a real
+image, posting, and follow/unfollow interactions remain for the final UI check;
+formal performance/passoff work remains.
 
 `model/dao/dynamodb/DynamoDBFollowDAO.ts` now implements the complete FollowDAO
 storage contract and is wired into the factory and FollowService's mutations,
@@ -755,7 +769,7 @@ content-type metadata. Extensions are case-insensitive and may start with a dot.
 Base64 must be canonical; metadata checks do not inspect the image file itself.
 No relationships or feed entries are created for a new account. Feed reads
 return an empty page for that account; the browser signup/blank-feed experience
-still requires live verification after deployment.
+still requires browser verification; live registration and empty-feed API checks pass.
 
 The early alias lookup avoids unnecessary hashing/uploads; conditional user
 creation also prevents racing registrations from replacing an existing account.
@@ -774,7 +788,7 @@ this composition and also accepts an injected service for tests. Its IAM policy
 permits only GetItem/PutItem on UsersTable, PutItem on SessionsTable, and
 PutObject/DeleteObject under the bucket's image prefix. Registration has 512 MB
 and a 30-second timeout to give bcrypt and persistence enough execution time;
-actual AWS latency has not yet been measured. Invalid input/duplicate aliases
+formal latency/load requirements have not been measured. Invalid input/duplicate aliases
 use the existing HTTP 400/CORS mapping. Other failures use the generic 500 mapping.
 
 UserService's dependencies remain optional for existing test construction;
@@ -784,7 +798,7 @@ verification, automatic sign-in, duplicate races, failures, and cleanup:
 `npm test --workspace tweeter-web -- --runInBand test/server/RegistrationService.test.ts test/server/RegisterLambda.test.ts`.
 The live registration suite now uses unique aliases and verifies persisted profiles,
 automatic sign-in, empty lists/counts, image bytes from S3, duplicate rejection, and
-subsequent login. It has been compiled locally but awaits deployed verification.
+subsequent login. The deployed suite passes, including public S3 image-byte retrieval.
 
 `UserService.login` now looks up the exact alias, compares the supplied password
 with the stored bcrypt hash, reconstructs the public user profile, and creates a
@@ -800,10 +814,9 @@ UsersTable and PutItem on SessionsTable. Like registration, it has 512 MB and a
 30-second timeout for bcrypt processing. The API maps malformed requests to 400,
 incorrect credentials to 401, and unexpected errors to a generic 500, each with
 CORS. The 500 expression excludes both expected error prefixes. Configuration
-and regex checks are local; deployed HTTP status codes and CORS still need live
-verification. The live login suite now uses fixture credentials and checks
+and regex checks are supplemented by passing deployed HTTP status/CORS tests. The live login suite now uses fixture credentials and checks
 independent sessions, wrong/missing credentials, and 400/401 CORS responses;
-it has been compiled locally and awaits deployment.
+the deployed login suite passes.
 Login service tests include real bcrypt comparisons, fresh-session persistence,
 wrong/missing credentials, exact password handling, and infrastructure failures:
 `npm test --workspace tweeter-web -- --runInBand test/server/LoginService.test.ts test/server/LoginLambda.test.ts`.
@@ -824,7 +837,7 @@ errors map to 400, malformed/expired/unknown/revoked tokens to 401, and storage
 failures to a generic 500, all with CORS. Local regex checks verify that expected
 400/401 errors do not also match 500. The live logout suite now uses real login
 tokens and checks that both protected requests and repeated logout fail after
-revocation; live status/CORS behavior has not yet been verified. Service tests use stateful session DAO
+revocation; deployed status/CORS checks now pass. Service tests use stateful session DAO
 doubles to check revocation, session isolation, expiration, and failures:
 `npm test --workspace tweeter-web -- --runInBand test/server/LogoutService.test.ts test/server/LogoutLambda.test.ts`.
 
@@ -841,7 +854,7 @@ injected service for isolated tests. GetUserFunction has GetItem only on
 UsersTable and GetItem/UpdateItem only on SessionsTable. Its API mapping returns
 400 for malformed request fields, 401 for invalid sessions, and generic 500 for
 unexpected failures, all with CORS. Live user-lookup tests now use authenticated
-persisted fixtures and await deployed verification. Offline tests
+persisted fixtures and pass against the deployed API. Offline tests
 exercise public-profile reconstruction, lookups of another user, unknown aliases,
 activity refresh, expiration, logout revocation, and error propagation:
 `npm test --workspace tweeter-web -- --runInBand test/server/GetUserService.test.ts test/server/GetUserLambda.test.ts`.
@@ -862,8 +875,7 @@ CORS. Their roles allow PutItem (follow) or DeleteItem (unfollow) only on
 FollowsTable and GetItem/UpdateItem on UsersTable/SessionsTable. Transaction IAM
 permissions use the underlying item actions. No scan/index/S3 permissions are
 needed for mutations. Live mutation tests now register isolated accounts and check
-persisted direction/counters and repeat-request behavior. They await deployed
-verification. Shared service/composition tests run with:
+persisted direction/counters and repeat-request behavior; deployed checks pass. Shared service/composition tests run with:
 `npm test --workspace tweeter-web -- --runInBand test/server/FollowServiceActions.test.ts test/server/FollowLambda.test.ts test/server/AWSComposition.test.ts`.
 
 FollowService's follower/followee count methods now share a count-selection
@@ -883,7 +895,7 @@ GetItem on FollowsTable. All three can GetItem/UpdateItem on SessionsTable for
 authorization/refresh; none can mutate relationships or user counters. Routes
 declare 400/401/500 with CORS and nonoverlapping error patterns. Live count/status
 tests now assert exact seeded values and relationship direction using real sessions.
-They await deployed verification. Local tests cover counter selection, zero counts, relationship
+They pass against the deployed API. Local tests cover counter selection, zero counts, relationship
 direction, authentication before reads, injection, and infrastructure errors:
 `npm test --workspace tweeter-web -- --runInBand test/server/FollowServiceReads.test.ts test/server/FollowCountLambdas.test.ts test/server/FollowingStatusLambda.test.ts`.
 
@@ -912,7 +924,8 @@ These local fixtures are in-memory. Live list tests now use the seeded reader an
 authors with one-item pages to exercise cursors, exact profiles, and terminal empty
 pages. Follower reads use bounded index-convergence checks. The thirteen-entry
 stories and twenty-six-entry feed support browser scrolling/passoff once seeded;
-deployed queries, pagination, and scrolling still need verification.
+deployed queries/pagination pass, and the user verified feed/story scrolling in
+the browser. Interactive mutation checks remain for the final UI pass.
 
 | SAM resource | Partition key | Sort key / index | Data |
 | --- | --- | --- | --- |
@@ -962,7 +975,8 @@ as needed. The public cursor is the last returned alias, keeping the extra
 lookahead item available on the next request. Exhausted pages return null cursors.
 Profile lookup remains separate from alias pagination so relationships do not
 expose password hashes. Isolated tests exercise commands and simulated database
-responses; live transaction atomicity and index behavior remain unverified:
+responses. Live sequential mutation/counter/idempotence checks pass and index
+convergence was observed; concurrent load/latency has not been measured:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFollowDAO.test.ts`.
 
 The Milestone 4A duplication review is complete for the current server code.
@@ -1082,7 +1096,7 @@ cover 24 feed-specific cases, including 25-item/16-MB batch boundaries, duplicat
 recipients, partial retry progress/exhaustion, and mixed-author owner-isolated
 pagination through 13 statuses as pages of 10, 3, and 0:
 `npm test --workspace tweeter-web -- --runInBand test/server/DynamoDBFeedDAO.test.ts`.
-No live delivery/pagination has been verified. Jest's TypeScript transform now
+Separate live suites now verify delivery and persisted story/feed pagination. Jest's TypeScript transform now
 explicitly includes Node and Jest types alongside the existing Vite types, so
 mixed client/server test runs can resolve Node modules consistently. All 800
 offline tests pass with `npm test --workspace tweeter-web -- --runInBand`.
@@ -1103,7 +1117,8 @@ feed copies, and the request returns an error. There is no durable pending-deliv
 job yet. Replaying an immutable record is safe at the DAO level; repeating the
 entire HTTP post command creates a new server ID and can create another post.
 Follower discovery uses the eventually consistent reverse index. Actual AWS
-delivery, index propagation, and high-follower latency remain unverified.
+delivery and index convergence were verified with isolated live accounts;
+high-follower latency remains unmeasured.
 
 `lambda/config/getStatusService.ts` caches the injected service using the same
 factory/authorization dependencies as user/follow services. PostStatusLambda
@@ -1120,7 +1135,7 @@ authentication/storage failures, and partial-delivery errors:
 `npm test --workspace tweeter-web -- --runInBand test/server/PostStatusService.test.ts test/server/PostStatusLambda.test.ts`.
 These use mocked DAOs, not AWS. Live posting tests now use isolated registered
 accounts and verify authoritative metadata, synchronous follower delivery, and
-retained entries after unfollow. They await deployed verification. All StatusService
+retained entries after unfollow. Those deployed tests pass. All StatusService
 operations now use persistence.
 
 `StatusService.loadMoreStoryItems` now authenticates and refreshes the session,
@@ -1143,7 +1158,9 @@ accounts, JSON pagination across 13 equal-timestamp posts as pages of 10/3/0,
 invalid/legacy/cross-author cursors, snapshot reconstruction, continuation flags,
 and storage failures:
 `npm test --workspace tweeter-web -- --runInBand test/server/StoryService.test.ts test/server/StoryLambda.test.ts test/server/AWSComposition.test.ts`.
-All use mocks; real DynamoDB/API Gateway/browser behavior remains unverified.
+These local tests use mocks; the separate deployed DynamoDB/API Gateway suites
+now pass. Browser story/feed pagination and empty-list behavior were subsequently
+verified by the user.
 
 `StatusService.loadMoreFeedItems` now authenticates/refreshes the session,
 checks that the selected feed owner exists, and queries only FeedDAO.getFeed
@@ -1174,7 +1191,7 @@ No server source uses FakeData now. Story/feed live tests now use persisted fixt
 login, registration, logout, and user lookup have also been migrated.
 Relationship and posting live suites have also been migrated. The duplicate legacy
 ServerFacade follower suite was consolidated into the follower endpoint suite.
-Live populated tabs and browser scrolling remain unverified.
+Seeded data, API pagination, and user-reported browser tab/scrolling checks pass.
 The server duplication review is documented above.
 
 Profile images use the `image/` prefix in ProfileImagesBucket. A bucket policy
@@ -1209,7 +1226,7 @@ public S3 image bytes, duplicate-alias preservation, subsequent login, validatio
 and CORS. Registration creates two uniquely named accounts and images per run;
 they remain because there is no account-deletion endpoint. Tests revoke their
 sessions and do not change the seeded public fixture snapshots. The PNG bytes
-are shared with the seed tool. No live API behavior has been verified yet.
+are shared with the seed tool. All of these live API checks now pass.
 
 Relationship suites now share mutation, count, and pagination runners. Counts and
 following status assert exact fixture state, including zeros and reverse/self
@@ -1236,15 +1253,116 @@ four posts/two feed copies. It revokes sessions and removes test relationships;
 accounts/images/posts remain because deletion endpoints do not exist. Seeded
 reader/author profiles, relationships, stories, and feed snapshots stay unchanged.
 
-All fourteen route suites are now prepared for persisted verification. No dummy
-credentials, FakeData assumptions, or fallback deployed API URL remain under
-`test/integration`. Actual successful live verification, inactivity expiry/activity
-refresh checks, deployment/seeding, and browser checks remain pending. Without
-TWEETER_API_BASE_URL, TWEETER_FIXTURE_PATH, and TWEETER_TEST_PASSWORD the suites
-fail in setup; their compilation/offline helper results do not establish that the
-deployed APIs pass. The previously diagnosed forty-five failures came from that
-missing configuration before any HTTP requests. Run the full live command below
-only after deployment and a successful explicit seed.
+All fourteen route suites pass against the deployed API: 106 tests, zero failures.
+No dummy credentials, FakeData assumptions, or fallback hard-coded API URL remain
+under `test/integration`. The previous forty-five setup failures were caused by
+missing configuration, before HTTP calls. After deployment/seeding the full run
+passed with explicit environment settings. The normal integration command also
+now loads the private, ignored `milestone4-fixtures/live-config.json` when all
+three test settings are absent. If any setting is explicitly supplied, no local
+fallback is used; provide all three together to avoid mixing another API target
+with saved credentials. Missing both environment settings and a private config
+still fails setup. The login suite was rerun through this normal command and all
+eight tests passed without manually exported test settings.
+
+The private config contains the generated fixture password and deployed resource
+names; its file permissions are 0600 and the fixture directory is Git-ignored.
+Read environment.TWEETER_TEST_PASSWORD there for browser login as
+@m4a20261124-reader. The public fixture manifest contains no password/token.
+Local logs/results are in ignored `.aws-sam/milestone4-live-tests.log` and
+`.aws-sam/milestone4-live-results.json`.
+
+Additional live session/storage verification passed using temporary session rows:
+TTL is enabled on expiresAt, an expired row still awaiting cleanup is rejected
+with 401/CORS, a near-expiry valid session refreshes to thirty minutes, raw bearer
+tokens are not stored, logout deletes the row and blocks reuse, and the reader's
+stored bcrypt cost-twelve hash verifies without a plaintext password field.
+Temporary rows were removed afterward; a consistent scan confirmed zero remaining
+sessions. The local audit script/log are in ignored
+`.aws-sam/milestone4-session-audit.cjs` and `.aws-sam/milestone4-session-audit.log`.
+The user subsequently verified browser feed/story scrolling, profile navigation,
+exact counts/lists, empty accounts, placeholder images, and wrong-password errors.
+Browser registration/posting/follow/unfollow checks and performance/load passoff
+remain; the corresponding API integration tests already pass.
+
+Deployment preparation now includes `samconfig.example.toml`. It proposes updating
+`tweeter-m3` in us-east-1 with stage dev and a thirty-minute inactivity timeout;
+check the stack/region before copying it to the Git-ignored samconfig.toml. It
+keeps change-set confirmation enabled and selects source builds. The configured
+local profile testUser initially authenticated with STS but lacked CloudFormation
+access. After the user attached deployment policies, DescribeStacks succeeds for
+tweeter-m3 in us-east-1: the stack is UPDATE_COMPLETE and its dev API URL matches
+the client. The existing SAM artifact bucket is reused. The S3 account-level
+public-access-block lookup reports no configured block; actual bucket-policy
+creation succeeded; live registration tests retrieved the public PNG bytes.
+
+The first approved change set, samcli-deploy1795553059, failed because
+PutRolePolicy/DeleteRolePolicy permissions were missing, leaving rollback blocked.
+After IAMFullAccess was actually attached and confirmed, normal rollback completed
+without skipping resources. The five retained tables and image bucket were
+verified empty and absent from the recovered template, then removed under the
+user's cleanup authorization. All six old physical resources were subsequently
+verified absent. No unrelated resources or existing user data were deleted.
+
+Retry change set samcli-deploy1795553682 was compared programmatically against
+the approved resource actions and parameters and matched exactly. It executed
+successfully; the stack is UPDATE_COMPLETE, the original dev API URL is preserved,
+and the five tables/image bucket/policy are active. Archived reviews and deployed
+outputs are in ignored `.aws-sam/milestone4-change-set.json`,
+`.aws-sam/milestone4-retry-change-set.json`, and
+`.aws-sam/milestone4-deployed-stack.json`. The explicit seed succeeded, followed by
+the full live verification above. The current table counts are twelve users,
+two relationships, thirty story entries, twenty-eight feed entries, and zero
+sessions, matching the seed plus isolated live-test data and cleanup.
+
+Use the existing source-build mode for this npm workspace:
+
+```sh
+cp -n samconfig.example.toml samconfig.toml
+sam build --build-in-source --template-file template.yaml
+sam validate --lint --template-file template.yaml
+```
+
+A plain temporary-copy build failed locally because copied node_modules command
+links lost the package context needed by rimraf. Source builds preserve workspace
+links and successfully package all fourteen handlers. Avoid parallel source
+builds/tests that clean/recompile the same shared dist folder. Generated build
+artifacts remain ignored by Git. See the official [SAM build options](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-build.html).
+
+Once the AWS deployment profile is configured and the local stack/region choices
+are checked, prepare a reviewable change set using:
+
+```sh
+sam deploy --template-file .aws-sam/build/template.yaml --config-file "$PWD/samconfig.toml" --profile YOUR_DEPLOYMENT_PROFILE --no-execute-changeset
+```
+
+This uploads artifacts and records a CloudFormation change set without executing
+the application changes; SAM may also provision its managed artifact bucket.
+Review the actual operations/replacements before applying the deployment. This
+review-only command succeeded using testUser; the initial execution failed on IAM
+permissions, then the identical approved retry succeeded after recovery. The [SAM deploy reference](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-deploy.html)
+documents the change-set option. Keep confirm_changeset enabled when applying.
+The template retains data tables and the image bucket and currently provisions
+one RCU/WCU per table/index, totaling six of each across five tables and one GSI.
+Actual account capacity/charges and S3 public-policy constraints require checking
+against the target account at deployment time.
+
+After successful deployment, stack outputs provide these nonsecret seed settings:
+
+| Stack output | Local environment variable |
+| --- | --- |
+| DeploymentRegion | AWS_REGION |
+| UsersTableName | USERS_TABLE_NAME |
+| SessionsTableName | SESSIONS_TABLE_NAME |
+| FollowsTableName | FOLLOWS_TABLE_NAME |
+| StoriesTableName | STORIES_TABLE_NAME |
+| FeedsTableName | FEEDS_TABLE_NAME |
+| ProfileImagesBucketName | PROFILE_IMAGES_BUCKET |
+| ApiBaseUrl | TWEETER_API_BASE_URL |
+
+Retrieve them through the stack's Outputs tab or aws cloudformation describe-stacks
+using the deployment-capable profile, then proceed to the explicit seed below.
+Passwords and AWS credentials are not stack outputs or committed configuration.
 
 `src/tools/milestone4Fixtures.ts` builds a versioned deterministic fixture plan.
 `src/tools/seedMilestone4.ts` persists it through the DAOFactory interfaces;
@@ -1292,8 +1410,9 @@ cleanup/reset; a new namespace and an explicit review of partial test resources
 are needed after failure. Avoid concurrent seed runs using the same namespace.
 Keep these fixture accounts read-only while running exact-snapshot tests.
 
-Set TWEETER_API_BASE_URL to the deployed Milestone 4A stage, keeping the same
-TWEETER_FIXTURE_PATH and TWEETER_TEST_PASSWORD, then run:
+On this workspace the following command reads the generated private live config.
+On another workspace, set TWEETER_API_BASE_URL, TWEETER_FIXTURE_PATH, and
+TWEETER_TEST_PASSWORD together (or supply the same explicit local config):
 
 ```sh
 npm run test:integration --workspace tweeter-web
@@ -1302,7 +1421,10 @@ npm run test:integration --workspace tweeter-web
 For browser scrolling verification, sign in as the manifest's reader account
 using the fixture password: its Feed should show 26 entries. Visit an author's
 Story for 13 entries, and the empty account for empty lists. This setup satisfies
-the data prerequisite for a tab with more than ten items only after the explicit
-seed succeeds; scrolling, S3 image delivery, API error responses, and pagination
-still require live/browser verification. No seed writes or live API verification have been
-performed as part of preparing these tools.
+the data prerequisite for a tab with more than ten items: the explicit seed has
+succeeded, and S3 delivery, API errors/CORS, and pagination passed live tests.
+The user has now confirmed rendering/scrolling and the expected seeded counts,
+empty lists, images, and wrong-password error in the browser. Registration with a
+real image, posting, follow/unfollow UI interactions, and formal performance/passoff
+checks remain. Running the full live suite again creates another set of isolated
+test accounts/images/posts; it preserves the baseline seeded snapshots.
