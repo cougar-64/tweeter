@@ -34,8 +34,8 @@ Resources:
     Properties:
       BillingMode: PROVISIONED
       ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 5
       AttributeDefinitions:
         - AttributeName: alias
           AttributeType: S
@@ -50,8 +50,8 @@ Resources:
     Properties:
       BillingMode: PROVISIONED
       ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
+        ReadCapacityUnits: 4
+        WriteCapacityUnits: 2
       AttributeDefinitions:
         - AttributeName: tokenHash
           AttributeType: S
@@ -70,7 +70,7 @@ Resources:
       BillingMode: PROVISIONED
       ProvisionedThroughput:
         ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
+        WriteCapacityUnits: 2
       AttributeDefinitions:
         - AttributeName: followerAlias
           AttributeType: S
@@ -92,7 +92,7 @@ Resources:
             ProjectionType: KEYS_ONLY
           ProvisionedThroughput:
             ReadCapacityUnits: 1
-            WriteCapacityUnits: 1
+            WriteCapacityUnits: 2
 
   StoriesTable:
     Type: AWS::DynamoDB::Table
@@ -101,8 +101,8 @@ Resources:
     Properties:
       BillingMode: PROVISIONED
       ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
       AttributeDefinitions:
         - AttributeName: authorAlias
           AttributeType: S
@@ -121,8 +121,8 @@ Resources:
     Properties:
       BillingMode: PROVISIONED
       ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 5
       AttributeDefinitions:
         - AttributeName: ownerAlias
           AttributeType: S

@@ -28,7 +28,8 @@
     "serve": "vite preview",
     "reload": "npm run build && npm run serve",
     "test": "jest --passWithNoTests",
-    "test:integration": "jest --config jest.integration.config.cjs --runInBand"
+    "test:integration": "jest --config jest.integration.config.cjs --runInBand",
+    "test:passoff": "jest --config jest.integration.config.cjs --runInBand --runTestsByPath test/integration/Login.test.ts test/integration/Logout.test.ts test/integration/GetUser.test.ts test/integration/FollowingStatus.test.ts test/integration/FollowerCount.test.ts test/integration/FolloweeCount.test.ts test/integration/FollowersEndpoint.test.ts test/integration/Followees.test.ts test/integration/Story.test.ts test/integration/Feed.test.ts"
   },
   "eslintConfig": {
     "extends": [

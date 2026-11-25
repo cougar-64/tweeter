@@ -5,7 +5,7 @@ import { open, rm } from "node:fs/promises";
 import bcrypt from "bcryptjs";
 import { loadAWSConfig } from "../config/AWSConfig";
 import { AWSDAOFactory } from "../model/dao/aws/AWSDAOFactory";
-import { buildMilestone4Fixtures, fixtureImageBase64 } from "./milestone4Fixtures";
+import { buildMilestone4Fixtures, fixtureImageBase64, fixtureUsers } from "./milestone4Fixtures";
 import { seedMilestone4 } from "./seedMilestone4";
 
 async function main(): Promise<void> {
@@ -22,8 +22,9 @@ async function main(): Promise<void> {
   const plan = buildMilestone4Fixtures(namespace, "https://example.com/dry-run.png");
   if (!write) {
     if (output) throw new Error("--output requires --write; a dry run creates no manifest.");
-    console.log(JSON.stringify({ mode: "dry-run", namespace, aliases: Object.values(plan.users).map((u) => u.alias),
-      users: 4, followRelationships: 2, storyEntries: 26, feedEntries: 26, images: 1 }, null, 2));
+    console.log(JSON.stringify({ mode: "dry-run", namespace, aliases: fixtureUsers(plan).map((u) => u.alias),
+      users: fixtureUsers(plan).length, followRelationships: plan.relationships.length,
+      storyEntries: Object.values(plan.stories).flat().length, feedEntries: Object.values(plan.feeds).flat().length, images: 1 }, null, 2));
     return;
   }
   if (!output) throw new Error("--write requires --output for the generated fixture manifest.");

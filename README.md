@@ -2,10 +2,68 @@
 
 A starter project for the Tweeter Web application.
 
-Milestone 4A backend deployment is now verified: 106 live integration tests pass.
+Milestone 4A is deployed. The original full suite passed 106 live tests; the clean
+passoff reload now passes 77 non-mutating live checks.
 See [the persistence section](#milestone-4a-persistence-foundation) for current
 status and local test/login settings. Earlier Milestone 3 sections document the
 historical dummy-data implementation.
+
+## Current Milestone 4A passoff data
+
+The five Tweeter DynamoDB tables were backed up, cleared, and reloaded for passoff.
+Sign in as **@user1** with password **123**. All fourteen fixture accounts use
+that deliberately simple test password, with separately salted bcrypt hashes in
+DynamoDB. The private, Git-ignored `milestone4-fixtures/live-config.json` has the
+current test settings. Old accounts and sessions were removed by the requested
+reset; sign in again using the new alias.
+
+| Main account tab | Items |
+| --- | ---: |
+| Feed | 26 |
+| Story | 13 |
+| Followers | 12 |
+| Followees | 12 |
+
+This gives one account more than ten items in every tab. **@user2** and
+**@user3** are the two other authors; **@user4** has empty lists. **@user5**
+through **@user14** complete the twelve mutual relationships around @user1.
+Display names are User 1 through User 14. Aliases are alphanumeric so existing
+in-post mention links work. The version-three public manifest is
+`milestone4-fixtures/userpassoff.json`. All 77 passoff checks across ten live suites
+passed, including 10+2 relationship pages and 10+3 story pages. A final paced,
+consistent database audit matched every fixture profile/counter, relationship,
+story/feed snapshot, and the public image bytes; no session rows remained.
+
+Use `npm run test:passoff --workspace tweeter-web` to check authentication and
+read/pagination routes without creating permanent test users, relationships, or
+posts. It acquires/revokes temporary login sessions. The full `test:integration`
+command also runs mutation suites that deliberately create extra users/posts;
+avoid that command after preparing the final clean passoff state. Human posting,
+following, and unfollowing will likewise change exact snapshot expectations.
+
+The final database contains fourteen users, twenty-four directed follow edges,
+thirty-nine story rows, and one hundred eighty-two precomputed feed rows.
+The main account receives Alice/Bob's twenty-six posts; its thirteen posts are
+also precomputed into the feeds of its twelve followers. The empty account is
+isolated. Existing S3 image objects were retained; the new profiles reference a
+fresh uploaded fixture image. Only the five CloudFormation-verified application
+tables were cleared; their schemas/indexes/TTL remain intact. Owner-only local
+backups are under ignored `milestone4-fixtures/backups/`.
+
+A reload at one-unit capacity hit DynamoDB throughput limits. The stack now
+provisions 20 read units and 18 write units in total across this project's tables
+and index, and administrative seed operations are paced. These project totals
+are below the course's 25-unit targets; account-wide usage/charges depend on
+other resources. No schema changes or replacements were made. Follow the
+[transaction capacity rules](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/read-write-operations.html)
+and [GSI capacity guidance](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html)
+when changing capacity later. Earlier dataset descriptions below are historical
+version-one notes; use this section and the current manifest for passoff counts.
+
+Before passoff, sign into the AWS Console and select **us-east-1**, with the
+Tweeter DynamoDB tables, S3 image bucket, and Lambda/API resources easy to open.
+Review/commit/push source and attribution edits and submit AI-ATTRIBUTION.md to
+the Milestone 4A Documents assignment before passoff, as required by the course.
 
 ## Setting Up the Project
 
@@ -651,9 +709,11 @@ no longer import FakeData. Status posting persists stories and precomputes feed
 copies; story and feed reads now use persistence. All protected endpoints
 authenticate and refresh sessions in source.
 Milestone 4A is deployed to tweeter-m3/dev in us-east-1 with stack status
-UPDATE_COMPLETE. All 106 live integration tests across fourteen suites pass.
-Fixture namespace m4a20261124 is seeded with four accounts, thirteen posts per
-author, and the reader's twenty-six-entry feed. Additional live checks verified
+UPDATE_COMPLETE. The earlier full suite passed 106 tests; following the requested
+reset, all 77 non-mutating passoff checks pass. Version-three namespace userpassoff
+contains fourteen accounts, twenty-four follow edges, thirty-nine story entries,
+and one hundred eighty-two feed copies. The main @user1 account has
+twelve followers, twelve followees, thirteen story posts, and twenty-six feed posts. Additional live checks verified
 TTL-expired session rejection, thirty-minute inactivity refresh, hashed bearer
 storage, logout revocation, and stored bcrypt password hashes. The user has now
 verified browser feed/story scrolling, relationship lists/counts, empty accounts,
@@ -935,8 +995,8 @@ the browser. Interactive mutation checks remain for the final UI pass.
 | StoriesTable | authorAlias | postKey | Author's persisted statuses |
 | FeedsTable | ownerAlias | postKey | Precomputed copies of followed authors' statuses |
 
-Tables and the relationship index each provision one read and one write capacity
-unit (six of each total). Resource names are generated by CloudFormation to
+The tables and relationship index now provision twenty read and eighteen write
+capacity units in total for reliable passoff browsing and seeding. Resource names are generated by CloudFormation to
 avoid collisions between stacks. Tables and the image bucket are retained on
 stack deletion/replacement. They must be removed separately if no longer needed.
 All five DynamoDB table names and the image bucket are configured globally;
@@ -1265,10 +1325,10 @@ with saved credentials. Missing both environment settings and a private config
 still fails setup. The login suite was rerun through this normal command and all
 eight tests passed without manually exported test settings.
 
-The private config contains the generated fixture password and deployed resource
+The private config contains the explicitly chosen fixture password and deployed resource
 names; its file permissions are 0600 and the fixture directory is Git-ignored.
 Read environment.TWEETER_TEST_PASSWORD there for browser login as
-@m4a20261124-reader. The public fixture manifest contains no password/token.
+@user1 (password 123 for these test accounts). The public fixture manifest contains no password/token.
 Local logs/results are in ignored `.aws-sam/milestone4-live-tests.log` and
 `.aws-sam/milestone4-live-results.json`.
 
@@ -1343,7 +1403,8 @@ review-only command succeeded using testUser; the initial execution failed on IA
 permissions, then the identical approved retry succeeded after recovery. The [SAM deploy reference](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-deploy.html)
 documents the change-set option. Keep confirm_changeset enabled when applying.
 The template retains data tables and the image bucket and currently provisions
-one RCU/WCU per table/index, totaling six of each across five tables and one GSI.
+twenty RCUs/eighteen WCUs across the five tables and one GSI, as detailed in the
+current passoff setup above.
 Actual account capacity/charges and S3 public-policy constraints require checking
 against the target account at deployment time.
 
@@ -1375,11 +1436,13 @@ npm run build --workspace tweeter-server
 npm run seed:milestone4 --workspace tweeter-server -- --namespace m4a20261123
 ```
 
-A fresh namespace creates four accounts, two follow relationships, thirteen posts
-per author (including timestamp ties), a reader feed containing all twenty-six
-posts, and one public one-pixel PNG in S3 shared by the fixture profiles. The
-reader has an empty story; the authors have empty feeds; the fourth account has
-neither posts nor feed entries. Each account gets a separately salted bcrypt hash
+The version-three plan reserves @user1 through @user14, creates twenty-four
+directed relationships, and thirteen posts each for User 1, User 2, and User 3
+(including timestamp ties). The namespace distinguishes status IDs and image keys;
+it does not change these fixed account aliases.
+Reader has twenty-six feed entries and twelve followers/followees. Each of those
+twelve peers receives Reader's thirteen posts in its precomputed feed. There is
+also an isolated empty account and one shared public one-pixel PNG in S3. Each account gets a separately salted bcrypt hash
 of TWEETER_TEST_PASSWORD. No sessions are seeded. Feed copies are written directly
 through FeedDAO so index propagation cannot change the expected fixtures; this
 seed does not verify live API posting/fan-out or registration.
@@ -1402,12 +1465,13 @@ npm run seed:milestone4 --workspace tweeter-server -- --namespace m4a20261123 --
 The command refuses existing account aliases before uploads/writes, uses conditional
 account creation to catch races, and never overwrites an existing output manifest.
 Generated manifests are ignored by Git and contain only public fixtures, not
-passwords or tokens. Use a fresh namespace for another run. Writes are not a
+passwords or tokens. These fixed aliases must be absent before another run; a
+new namespace alone cannot avoid account collisions. Writes are not a
 cross-service transaction: failure may leave accounts, relationships, posts/feed
 entries, or an uploaded image. Incomplete runs remove the reserved output file and
 return failure, without deleting potentially committed data. There is no automatic
-cleanup/reset; a new namespace and an explicit review of partial test resources
-are needed after failure. Avoid concurrent seed runs using the same namespace.
+cleanup/reset; explicitly review and clean up partial test resources before
+retrying. Avoid concurrent seed runs, since they share the reserved aliases.
 Keep these fixture accounts read-only while running exact-snapshot tests.
 
 On this workspace the following command reads the generated private live config.
@@ -1439,7 +1503,7 @@ one manual close or a refresh after updating the client.
 
 A newly registered account has no people in its lists yet. There is no search box,
 but the existing authenticated profile route accepts a known alias: keep the current
-frontend origin and open `/story/@m4a20261124-author-a` to view Alice and use Follow.
+frontend origin and open `/story/@user2` to view User 2 and use Follow.
 Sign in with Remember Me enabled before changing the address bar: this performs
 a full reload, and the provider restores authentication from local storage only
 when the login was remembered. With Remember Me off (the default), authentication
@@ -1448,3 +1512,16 @@ Me enabled, enter the profile URL again.
 ItemScroller already resolves its route alias through authenticated user lookup.
 Unfollow after testing to restore the fixture's original relationship counts.
 No user-search UI or server search endpoint was added.
+
+The user subsequently confirmed remembered-login navigation to Alice, following
+her, posting as Alice, and seeing that future post delivered to the follower's
+feed. That confirms the browser follow/post/feed path. A final browser check of
+unfollow preventing a subsequent post, registration with a real photo, and the
+new five-second error dismissal remains unless already checked by the user.
+Manual mutations of the seeded Alice/reader data change the exact manifest
+expectations (story/feed entries and relationship counts). Before rerunning the
+full exact-fixture suite, restore the prepared snapshot through a deliberate
+backup/reset/reseed or update test expectations for the intended mutations; do not
+diagnose legitimate extra manual posts/followers as an application regression.
+The new passoff reset supersedes that manually modified version-one baseline;
+use the version-three manifest and current counts at the top of this document.

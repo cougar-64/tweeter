@@ -1,5 +1,6 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import { AuthToken, PagedUserItemRequest, User, type UserDto } from "tweeter-shared";
+import { relatedFixtureUsers } from "../../../../tweeter-server/src/tools/milestone4Fixtures";
 import { FollowService } from "../../../src/model.service/FollowService";
 import { expectLiveError, expectLivePreflight, loadLiveTestContext, postLive, waitForLive, type LiveTestContext } from "./liveTestContext";
 
@@ -11,13 +12,13 @@ export function describeRelationshipPage(direction: "followers" | "followees"): 
     let expected: UserDto[];
     const method = direction === "followers" ? "getMoreFollowers" : "getMoreFollowees";
     const serviceMethod = direction === "followers" ? "loadMoreFollowers" : "loadMoreFollowees";
-    const request = (size = 1, lastItem: UserDto | null = null, alias = owner) => new PagedUserItemRequest(token.token, alias, size, lastItem);
+    const request = (size = 10, lastItem: UserDto | null = null, alias = owner) => new PagedUserItemRequest(token.token, alias, size, lastItem);
     beforeAll(async () => {
       context = await loadLiveTestContext(); [, token] = await context.login();
       const users = context.fixtures.users;
-      owner = direction === "followers" ? users.authorA.alias : users.reader.alias;
-      expected = direction === "followers" ? [users.reader] : [users.authorA, users.authorB];
-      if (direction === "followers") await waitForLive(() => context.facade[method](request(10)), ([items]) => items.length === expected.length);
+      owner = users.reader.alias;
+      expected = relatedFixtureUsers(context.fixtures, owner, direction);
+      if (direction === "followers") await waitForLive(() => context.facade[method](request(expected.length + 1)), ([items]) => items.length === expected.length);
     });
     afterAll(async () => { await context?.cleanup(); });
 
@@ -25,25 +26,25 @@ export function describeRelationshipPage(direction: "followers" | "followees"): 
       const response = await postLive(context, `/${direction}/list`, request());
       expect(response.status).toBe(200);
       expect(response.headers.get("access-control-allow-origin")).toBe("*");
-      await expect(response.json()).resolves.toEqual({ success: true, message: null, items: expected.slice(0, 1), hasMore: expected.length > 1 });
+      await expect(response.json()).resolves.toEqual({ success: true, message: null, items: expected.slice(0, 10), hasMore: expected.length > 10 });
     });
     it("returns every relationship once with JSON cursors and an empty terminal page through the facade", async () => {
       const all: User[] = [];
       let cursor: UserDto | null = null;
-      for (let i = 0; i < expected.length; i++) {
-        const [users, hasMore] = await context.facade[method](request(1, cursor));
-        expect(users).toHaveLength(1);
+      for (let offset = 0; offset < expected.length; offset += 10) {
+        const [users, hasMore]: [User[], boolean] = await context.facade[method](request(10, cursor));
+        expect(users).toHaveLength(Math.min(10, expected.length - offset));
         expect(users[0]).toBeInstanceOf(User);
-        expect(hasMore).toBe(i < expected.length - 1);
+        expect(hasMore).toBe(offset + users.length < expected.length);
         all.push(...users);
-        cursor = JSON.parse(JSON.stringify(users[0].dto));
+        cursor = JSON.parse(JSON.stringify(users[users.length - 1].dto));
       }
       expect(all.map((user) => user.dto)).toEqual(expected);
       expect(new Set(all.map((user) => user.alias)).size).toBe(expected.length);
-      await expect(context.facade[method](request(1, cursor))).resolves.toEqual([[], false]);
+      await expect(context.facade[method](request(10, cursor))).resolves.toEqual([[], false]);
     });
     it("uses the client service and supports empty accounts", async () => {
-      const result = await new FollowService(context.facade)[serviceMethod](token, owner, 10, null);
+      const result = await new FollowService(context.facade)[serviceMethod](token, owner, expected.length + 1, null);
       expect(result[0].map((user) => user.dto)).toEqual(expected);
       expect(result[1]).toBe(false);
       await expect(context.facade[method](request(10, null, context.fixtures.users.empty.alias))).resolves.toEqual([[], false]);

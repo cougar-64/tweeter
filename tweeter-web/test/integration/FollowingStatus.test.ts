@@ -10,7 +10,7 @@ describe("Persisted following status integration", () => {
   afterAll(async () => { await context?.cleanup(); });
   it.each(["facade", "service"] as const)("returns exact directed relationship state through the %s", async (client) => {
     const { reader, authorA, empty } = context.fixtures.users;
-    for (const [from, to, expected] of [[reader, authorA, true], [authorA, reader, false], [reader, empty, false], [reader, reader, false]] as const) {
+    for (const [from, to, expected] of [[reader, authorA, true], [authorA, reader, true], [reader, empty, false], [reader, reader, false]] as const) {
       const result = client === "facade" ? await context.facade.getIsFollowerStatus(new FollowingStatusRequest(token.token, from.alias, to.alias))
         : await new FollowService(context.facade).getIsFollowerStatus(token, User.fromDto(from), User.fromDto(to));
       expect(result).toBe(expected);

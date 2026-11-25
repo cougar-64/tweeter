@@ -18,7 +18,7 @@ export async function loadLiveTestContext() {
   const password = required("TWEETER_TEST_PASSWORD");
   const parsed = JSON.parse(await readFile(required("TWEETER_FIXTURE_PATH"), "utf8"));
   const fixtures = buildMilestone4Fixtures(parsed.namespace, parsed.imageUrl);
-  deepStrictEqual(parsed, fixtures, "Fixture manifest differs from this fixture version. Use a fresh seed namespace.");
+  deepStrictEqual(parsed, fixtures, "Fixture manifest differs from this fixture version. Prepare a current-version seed and manifest before running live tests.");
   const facade = new ServerFacade(baseUrl);
   const tokens = new Set<string>();
   const track = (result: [User, AuthToken]): [User, AuthToken] => {

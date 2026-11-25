@@ -1,6 +1,7 @@
 // AI-assisted: see AI-ATTRIBUTION.md
 import { randomUUID } from "node:crypto";
 import { AuthToken, User, UserAliasRequest } from "tweeter-shared";
+import { relatedFixtureUsers } from "../../../../tweeter-server/src/tools/milestone4Fixtures";
 import { FollowService } from "../../../src/model.service/FollowService";
 import { expectLiveError, expectLivePreflight, loadLiveTestContext, type LiveTestContext } from "./liveTestContext";
 
@@ -14,7 +15,7 @@ export function describeRelationshipCount(direction: "followers" | "followees"):
     it.each(["facade", "service"] as const)("returns exact persisted counts including zeros through the %s", async (client) => {
       for (const role of ["reader", "authorA", "empty"] as const) {
         const user = User.fromDto(context.fixtures.users[role]);
-        const expected = direction === "followers" ? (role === "authorA" ? 1 : 0) : (role === "reader" ? 2 : 0);
+        const expected = relatedFixtureUsers(context.fixtures, user.alias, direction).length;
         const count = client === "facade" ? await context.facade[method](new UserAliasRequest(token.token, user.alias))
           : await new FollowService(context.facade)[method](token, user);
         expect(count).toBe(expected);

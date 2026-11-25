@@ -24,8 +24,8 @@ export function describePersistedStatus(source: "story" | "feed"): void {
       const result = await context.login();
       token = result[1];
       expect(result[0].dto).toEqual(fixtures.users.reader);
-      ownerAlias = source === "story" ? fixtures.users.authorA.alias : fixtures.users.reader.alias;
-      expected = source === "story" ? fixtures.stories.authorA : fixtures.feed;
+      ownerAlias = fixtures.users.reader.alias;
+      expected = source === "story" ? fixtures.stories.reader : fixtures.feed;
     });
     afterAll(async () => { await context?.cleanup(); });
 
@@ -67,7 +67,7 @@ export function describePersistedStatus(source: "story" | "feed"): void {
     it("keeps the selected owner's data separate and returns an existing account's empty page", async () => {
       const otherOwner = source === "story" ? fixtures.users.authorB.alias : fixtures.users.authorA.alias;
       const [other] = await load(new PagedStatusItemRequest(token!.token, otherOwner, 20, null));
-      expect(other.map((item) => item.dto)).toEqual(source === "story" ? fixtures.stories.authorB.map((record) => record.status) : []);
+      expect(other.map((item) => item.dto)).toEqual(source === "story" ? fixtures.stories.authorB.map((record) => record.status) : fixtures.feeds[otherOwner].map((record) => record.status));
       await expect(load(new PagedStatusItemRequest(token!.token, fixtures.users.empty.alias, 10, null))).resolves.toEqual([[], false]);
     });
 
